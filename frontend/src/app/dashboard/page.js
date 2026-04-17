@@ -1,0 +1,127 @@
+"use client";
+
+import { useState } from "react";
+import "./dashboard.css";
+
+export default function DashboardPage() {
+  const [activeTab, setActiveTab] = useState("overview");
+
+  const financialData = [
+    { id: 1, label: "Saldo Total", value: "R$ 124.500,00", change: "+12%", type: "balance" },
+    { id: 2, label: "Receitas", value: "R$ 45.200,00", change: "+5%", type: "income" },
+    { id: 3, label: "Despesas", value: "R$ 12.800,00", change: "-2%", type: "expense" },
+    { id: 4, label: "Investimentos", value: "R$ 82.100,00", change: "+18%", type: "invest" },
+  ];
+
+  const transactions = [
+    { id: 1, company: "Google Cloud", date: "16 Abr 2026", amount: "-R$ 1.200,00", status: "Pago", category: "Infraestrutura" },
+    { id: 2, company: "Apple Payment", date: "15 Abr 2026", amount: "-R$ 850,00", status: "Processando", category: "Software" },
+    { id: 3, company: "Stripe Billing", date: "14 Abr 2026", amount: "+R$ 12.400,00", status: "Recebido", category: "Vendas" },
+    { id: 4, company: "AWS Services", date: "12 Abr 2026", amount: "-R$ 2.100,00", status: "Pago", category: "Infraestrutura" },
+    { id: 5, company: "Figma Pro", date: "10 Abr 2026", amount: "-R$ 150,00", status: "Pago", category: "Design" },
+  ];
+
+  return (
+    <div className="dashboard-layout">
+      {/* Sidebar */}
+      <aside className="sidebar glass">
+        <div className="sidebar-brand">
+          <h2 className="text-gradient">J.A.C.I.R.</h2>
+        </div>
+        <nav className="sidebar-nav">
+          <button 
+            className={`nav-item ${activeTab === "overview" ? "active" : ""}`}
+            onClick={() => setActiveTab("overview")}
+          >
+            Dashboard
+          </button>
+          <button 
+            className={`nav-item ${activeTab === "reports" ? "active" : ""}`}
+            onClick={() => setActiveTab("reports")}
+          >
+            Relatórios
+          </button>
+          <button 
+            className={`nav-item ${activeTab === "transactions" ? "active" : ""}`}
+            onClick={() => setActiveTab("transactions")}
+          >
+            Transações
+          </button>
+          <button 
+            className={`nav-item ${activeTab === "settings" ? "active" : ""}`}
+            onClick={() => setActiveTab("settings")}
+          >
+            Configurações
+          </button>
+        </nav>
+        <div className="sidebar-footer">
+          <div className="user-profile">
+            <div className="avatar">JD</div>
+            <div className="user-info">
+              <p className="user-name">João D'Agostini</p>
+              <p className="user-role">Finance Manager</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="main-content">
+        <header className="content-header">
+          <div className="header-title">
+            <h1>Visão Geral</h1>
+            <p>Bem-vindo de volta, João. Veja o resumo do seu sistema financeiro.</p>
+          </div>
+          <div className="header-actions">
+            <button className="btn-primary">Gerar Relatório</button>
+          </div>
+        </header>
+
+        {/* Stats Grid */}
+        <section className="stats-grid">
+          {financialData.map((stat) => (
+            <div key={stat.id} className="stat-card glass animate-fade-in" style={{ animationDelay: `${stat.id * 0.1}s` }}>
+              <p className="stat-label">{stat.label}</p>
+              <h3 className="stat-value">{stat.value}</h3>
+              <span className={`stat-change ${stat.change.startsWith("+") ? "positive" : "negative"}`}>
+                {stat.change} este mês
+              </span>
+            </div>
+          ))}
+        </section>
+
+        {/* Recent Transactions */}
+        <section className="content-section glass animate-fade-in" style={{ animationDelay: "0.5s" }}>
+          <div className="section-header">
+            <h2>Transações Recentes</h2>
+            <button className="btn-link">Ver tudo</button>
+          </div>
+          <div className="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Empresa / Cliente</th>
+                  <th>Data</th>
+                  <th>Valor</th>
+                  <th>Categoria</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((t) => (
+                  <tr key={t.id}>
+                    <td><strong>{t.company}</strong></td>
+                    <td>{t.date}</td>
+                    <td className={t.amount.startsWith("+") ? "text-income" : ""}>{t.amount}</td>
+                    <td><span className="badge">{t.category}</span></td>
+                    <td><span className={`status-pill ${t.status.toLowerCase()}`}>{t.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
