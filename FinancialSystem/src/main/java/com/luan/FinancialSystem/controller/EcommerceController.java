@@ -18,14 +18,23 @@ public class EcommerceController
         this.service=service;
     }
 
-    @PostMapping("/save")
-    public ResponseEntity<Ecommerce> save(@Valid @RequestBody Ecommerce ecommerce) {
-        return ResponseEntity.ok(service.save(ecommerce));
+    @PostMapping
+    public ResponseEntity<Ecommerce> create(@Valid @RequestBody Ecommerce ecommerce) {
+        return ResponseEntity.ok(service.create(ecommerce));
     }
 
-    @GetMapping("/ecommerce")
+    @GetMapping
     public List<Ecommerce> getAll(){
         return service.list();
     }
 
+    @PostMapping("/editEcommerce")
+    public ResponseEntity<Ecommerce> editEcommerce(@Valid @RequestBody Ecommerce ecommerce, Long id){
+        return ResponseEntity.ok(service.edit(id, ecommerce));
+    }
+
+//    @DeleteMapping
+//    public String deleteEcommerce(Long id){
+//        return ResponseEntity.ok(service.deleteEcommerce(id));
+//    }
 }
