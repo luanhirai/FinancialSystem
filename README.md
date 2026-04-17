@@ -1,6 +1,8 @@
 # 🚀 Projeto Fullstack
 
 Este repositório contém uma aplicação fullstack dividida em duas partes:
+/
+This repository contains a full-stack application divided into two parts:
 
 * 🎨 **Frontend**: interface do usuário / user interface
 * ⚙️ **Backend**: API e regras de negócio / API and business rules
