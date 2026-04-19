@@ -1,10 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import "./dashboard.css";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await fetch("http://localhost:8080/auth/logout", { method: "POST" });
+    localStorage.removeItem("user");
+    router.push("/login");
+  };
 
   const financialData = [
     { id: 1, label: "Saldo Total", value: "R$ 124.500,00", change: "+12%", type: "balance" },
@@ -29,29 +37,39 @@ export default function DashboardPage() {
           <h2 className="text-gradient">J.A.C.I.R.</h2>
         </div>
         <nav className="sidebar-nav">
-          <button 
+          <button
             className={`nav-item ${activeTab === "overview" ? "active" : ""}`}
             onClick={() => setActiveTab("overview")}
           >
             Dashboard
           </button>
-          <button 
+          <button
             className={`nav-item ${activeTab === "reports" ? "active" : ""}`}
             onClick={() => setActiveTab("reports")}
           >
             Relatórios
           </button>
-          <button 
+          <button
             className={`nav-item ${activeTab === "transactions" ? "active" : ""}`}
             onClick={() => setActiveTab("transactions")}
           >
             Transações
           </button>
-          <button 
+          <button
             className={`nav-item ${activeTab === "settings" ? "active" : ""}`}
             onClick={() => setActiveTab("settings")}
           >
             Configurações
+          </button>
+
+          {/* Separador */}
+          <div style={{ height: "1px", background: "var(--glass-border)", margin: "8px 0" }} />
+
+          <button className="nav-item" onClick={() => router.push("/products")}>
+            Produtos
+          </button>
+          <button className="nav-item" onClick={() => router.push("/ecommerce")}>
+            Ecommerce
           </button>
         </nav>
         <div className="sidebar-footer">
@@ -62,6 +80,10 @@ export default function DashboardPage() {
               <p className="user-role">Finance Manager</p>
             </div>
           </div>
+          {/* Botão de logout */}
+          <button className="logout-button" onClick={handleLogout}>
+            Sair
+          </button>
         </div>
       </aside>
 
@@ -77,7 +99,6 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* Stats Grid */}
         <section className="stats-grid">
           {financialData.map((stat) => (
             <div key={stat.id} className="stat-card glass animate-fade-in" style={{ animationDelay: `${stat.id * 0.1}s` }}>
@@ -90,7 +111,6 @@ export default function DashboardPage() {
           ))}
         </section>
 
-        {/* Recent Transactions */}
         <section className="content-section glass animate-fade-in" style={{ animationDelay: "0.5s" }}>
           <div className="section-header">
             <h2>Transações Recentes</h2>
