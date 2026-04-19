@@ -1,40 +1,50 @@
 package com.luan.FinancialSystem.service;
+
 import com.luan.FinancialSystem.entity.Ecommerce;
 import com.luan.FinancialSystem.repository.EcommerceRepository;
+import com.luan.FinancialSystem.repository.ProductRepository;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 
 @Service
-public class EcommerceService
-{
-    private final EcommerceRepository repository;
+public class EcommerceService {
 
-    public EcommerceService(EcommerceRepository repository){
-        this.repository=repository;
+    private final EcommerceRepository ecommerceRepository;
+    private final ProductRepository productRepository;
+
+    public EcommerceService(EcommerceRepository ecommerceRepository,
+                            ProductRepository productRepository) {
+        this.ecommerceRepository = ecommerceRepository;
+        this.productRepository = productRepository;
     }
 
-    public Ecommerce create(Ecommerce ecommerce){
-        return repository.save(ecommerce);
+    public Ecommerce create(Ecommerce ecommerce) {
+        return ecommerceRepository.save(ecommerce);
     }
 
-    public Ecommerce edit(Long id, Ecommerce updatedEcommerce){
-        Ecommerce ecommerce = repository.findById(id)
+    public List<Ecommerce> list() {
+        return ecommerceRepository.findAll();
+    }
+
+    public Ecommerce update(Long id, Ecommerce updated) {
+        Ecommerce ecommerce = ecommerceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Ecommerce não encontrado"));
+        return ecommerceRepository.save(ecommerce);
+    }
+
+    public Ecommerce delete(Long id) {
+        Ecommerce ecommerce = ecommerceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Ecommerce não encontrado"));
 
-        ecommerce.setName(updatedEcommerce.getName());
-        ecommerce.setRate(updatedEcommerce.getRate());
-        ecommerce.setFixed_rate(updatedEcommerce.getFixed_rate());
+        boolean hasProducts = !productRepository.findProductsByEcommerce(id).isEmpty();
+        if (hasProducts) {
+            throw new RuntimeException(
+                    "Não é possível deletar: existem produtos vinculados a este ecommerce."
+            );
+        }
 
-        return repository.save(ecommerce);
-    }
-
-    public void deleteEcommerce(Long id){
-        Ecommerce ecommerce= repository.findById(id).orElseThrow(()->new RuntimeException("Ecommerce não encontrado"));
-        // fazer busca em produtos relacionados com este ecommerce
-        repository.deleteById(id);
-    }
-
-    public List<Ecommerce> list(){
-        return repository.findAll();
+        ecommerceRepository.delete(ecommerce);
+        return ecommerce;
     }
 }

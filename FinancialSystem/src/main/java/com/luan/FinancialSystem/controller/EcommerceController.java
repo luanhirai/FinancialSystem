@@ -30,11 +30,16 @@ public class EcommerceController
 
     @PostMapping("/editEcommerce")
     public ResponseEntity<Ecommerce> editEcommerce(@Valid @RequestBody Ecommerce ecommerce, Long id){
-        return ResponseEntity.ok(service.edit(id, ecommerce));
+        return ResponseEntity.ok(service.update(id, ecommerce));
     }
 
-//    @DeleteMapping
-//    public String deleteEcommerce(Long id){
-//        return ResponseEntity.ok(service.deleteEcommerce(id));
-//    }
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteEcommerce(@PathVariable Long id) {
+        try {
+            Ecommerce deleted = service.delete(id);
+            return ResponseEntity.ok(deleted);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }
