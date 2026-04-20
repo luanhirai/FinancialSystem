@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import "./dashboard.css";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [user, setUser] = useState(null);
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -28,6 +29,22 @@ export default function DashboardPage() {
     { id: 4, company: "AWS Services", date: "12 Abr 2026", amount: "-R$ 2.100,00", status: "Pago", category: "Infraestrutura" },
     { id: 5, company: "Figma Pro", date: "10 Abr 2026", amount: "-R$ 150,00", status: "Pago", category: "Design" },
   ];
+
+
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    setUser(user);
+    // user.id, user.email, user.username, user.phone
+  }, []);
+
+
+  useEffect(() => {
+    const user = localStorage.getItem("user");
+    if (!user) {
+      router.push("/login");
+    }
+  }, [router]);
 
   return (
     <div className="dashboard-layout">
@@ -74,13 +91,11 @@ export default function DashboardPage() {
         </nav>
         <div className="sidebar-footer">
           <div className="user-profile">
-            <div className="avatar">JD</div>
+            <div className="avatar">{user?.username?.charAt(0)?.toUpperCase()}</div>
             <div className="user-info">
-              <p className="user-name">João D'Agostini</p>
-              <p className="user-role">Finance Manager</p>
+              <p className="user-name">{user?.username}</p>
             </div>
           </div>
-          {/* Botão de logout */}
           <button className="logout-button" onClick={handleLogout}>
             Sair
           </button>
@@ -92,7 +107,7 @@ export default function DashboardPage() {
         <header className="content-header">
           <div className="header-title">
             <h1>Visão Geral</h1>
-            <p>Bem-vindo de volta, João. Veja o resumo do seu sistema financeiro.</p>
+            <p>Bem-vindo de volta, {user?.username}. Veja o resumo do seu sistema financeiro.</p>
           </div>
           <div className="header-actions">
             <button className="btn-primary">Gerar Relatório</button>

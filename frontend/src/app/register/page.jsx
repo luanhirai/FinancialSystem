@@ -114,7 +114,7 @@ export default function RegisterPage() {
           )}
 
           <button type="submit" className="login-button" disabled={isLoading}>
-            {isLoading ? "Entrando..." : "Entrar System"}
+            {isLoading ? "Entrando..." : "Cadastrar"}
           </button>
         </form>
 

@@ -23,15 +23,15 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      const message = await response.text();
-
       if (!response.ok) {
-        setError(message); // "Senha incorreta." ou "Usuário não encontrado."
+        const message = await response.text();
+        setError(message || "Credenciais inválidas.");
         return;
       }
 
+      const userData = await response.json();
+      localStorage.setItem("user", JSON.stringify(userData));
       router.push("/dashboard");
-
     } catch (err) {
       setError("Não foi possível conectar ao servidor.");
     } finally {
@@ -85,7 +85,7 @@ export default function LoginPage() {
           )}
 
           <button type="submit" className="login-button" disabled={isLoading}>
-            {isLoading ? "Entrando..." : "Entrar System"}
+            {isLoading ? "Entrando..." : "Entrar"}
           </button>
         </form>
 
