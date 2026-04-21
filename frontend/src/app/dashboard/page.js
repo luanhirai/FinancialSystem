@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Sidebar from "../components/page";
+
 import "./dashboard.css";
 
 export default function DashboardPage() {
@@ -48,60 +50,7 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard-layout">
-      {/* Sidebar */}
-      <aside className="sidebar glass">
-        <div className="sidebar-brand">
-          <h2 className="text-gradient">J.A.C.I.R.</h2>
-        </div>
-        <nav className="sidebar-nav">
-          <button
-            className={`nav-item ${activeTab === "overview" ? "active" : ""}`}
-            onClick={() => setActiveTab("overview")}
-          >
-            Dashboard
-          </button>
-          <button
-            className={`nav-item ${activeTab === "reports" ? "active" : ""}`}
-            onClick={() => setActiveTab("reports")}
-          >
-            Relatórios
-          </button>
-          <button
-            className={`nav-item ${activeTab === "transactions" ? "active" : ""}`}
-            onClick={() => setActiveTab("transactions")}
-          >
-            Transações
-          </button>
-          <button
-            className={`nav-item ${activeTab === "settings" ? "active" : ""}`}
-            onClick={() => setActiveTab("settings")}
-          >
-            Configurações
-          </button>
-
-          {/* Separador */}
-          <div style={{ height: "1px", background: "var(--glass-border)", margin: "8px 0" }} />
-
-          <button className="nav-item" onClick={() => router.push("/products")}>
-            Produtos
-          </button>
-          <button className="nav-item" onClick={() => router.push("/ecommerce")}>
-            Ecommerce
-          </button>
-        </nav>
-        <div className="sidebar-footer">
-          <div className="user-profile">
-            <div className="avatar">{user?.username?.charAt(0)?.toUpperCase()}</div>
-            <div className="user-info">
-              <p className="user-name">{user?.username}</p>
-            </div>
-          </div>
-          <button className="logout-button" onClick={handleLogout}>
-            Sair
-          </button>
-        </div>
-      </aside>
-
+      <Sidebar />
       {/* Main Content */}
       <main className="main-content">
         <header className="content-header">

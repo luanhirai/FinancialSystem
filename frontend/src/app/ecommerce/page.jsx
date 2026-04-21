@@ -3,6 +3,19 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import "./ecommerce.css";
+import Sidebar from "../components/page";
+
+const authFetch = (url, options = {}) => {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  return fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${user.token}`,
+      ...options.headers,
+    }
+  });
+};
 
 export default function EcommercePage() {
   const [ecommerces, setEcommerces] = useState([]);
@@ -15,8 +28,9 @@ export default function EcommercePage() {
   useEffect(() => { fetchEcommerces(); }, []);
 
   const fetchEcommerces = async () => {
-    const res = await fetch("http://localhost:8080/ecommerce");
-    const data = await res.json();
+    const res = await authFetch("http://localhost:8080/ecommerce");
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : [];
     setEcommerces(data);
   };
 
@@ -41,9 +55,8 @@ export default function EcommercePage() {
     const method = editingEcommerce ? "PUT" : "POST";
 
     try {
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
 
@@ -56,10 +69,10 @@ export default function EcommercePage() {
   };
 
   const handleDelete = async (id) => {
-    const res = await fetch(`http://localhost:8080/ecommerce/${id}`, { method: "DELETE" });
+    const res = await authFetch(`http://localhost:8080/ecommerce/${id}`, { method: "DELETE" });
     if (!res.ok) {
       const msg = await res.text();
-      alert(msg); // mostra "Não é possível deletar: existem produtos vinculados."
+      alert(msg);
       return;
     }
     fetchEcommerces();
@@ -67,28 +80,7 @@ export default function EcommercePage() {
 
   return (
     <div className="dashboard-layout">
-      <aside className="sidebar glass">
-        <div className="sidebar-brand">
-          <h2 className="text-gradient">J.A.C.I.R.</h2>
-        </div>
-        <nav className="sidebar-nav">
-          <button className="nav-item" onClick={() => router.push("/dashboard")}>Dashboard</button>
-          <button className="nav-item" onClick={() => router.push("/products")}>Produtos</button>
-          <button className="nav-item active">Ecommerce</button>
-        </nav>
-        <div className="sidebar-footer">
-          <div className="user-profile">
-            <div className="avatar">JD</div>
-            <div className="user-info">
-              <p className="user-name">João D'Agostini</p>
-              <p className="user-role">Finance Manager</p>
-            </div>
-          </div>
-          <button className="logout-button" onClick={() => { localStorage.removeItem("user"); router.push("/login"); }}>
-            Sair
-          </button>
-        </div>
-      </aside>
+      <Sidebar />
 
       <main className="main-content">
         <header className="content-header">
@@ -107,9 +99,6 @@ export default function EcommercePage() {
             <h3 className="stat-value">{ecommerces.length}</h3>
           </div>
         </section>
-
-
-        {/* ############################### Ecommerces Table ########################### */}
 
         <section className="content-section glass animate-fade-in">
           <div className="table-responsive">
@@ -144,9 +133,6 @@ export default function EcommercePage() {
         </section>
       </main>
 
-
-      {/* ############################### Modal ########################### */}
-
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal glass" onClick={(e) => e.stopPropagation()}>
@@ -156,7 +142,7 @@ export default function EcommercePage() {
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome do ecommerce" />
             </div>
             <div className="form-group">
-              <label>taxa percentual</label>
+              <label>Taxa percentual</label>
               <input value={form.rate} onChange={(e) => setForm({ ...form, rate: e.target.value })} placeholder="Taxa percentual" />
             </div>
             <div className="form-group">

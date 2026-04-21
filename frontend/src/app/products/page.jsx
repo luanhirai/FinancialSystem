@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import "./products.css";
+import Sidebar from "../components/page";
 
 const API = "http://localhost:8080";
 
@@ -28,11 +29,23 @@ export default function ProductsPage() {
     fetchEcommerces();
   }, []);
 
+  const authFetch = (url, options = {}) => {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  return fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${user.token}`,
+      ...options.headers,
+    }
+  });
+};
+
   // ─── Fetches ───────────────────────────────────────────────
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch(`${API}/product`, { method: "GET" });
+      const res = await authFetch(`${API}/product`, { method: "GET" });
       if (!res.ok) return;
       const text = await res.text();
       setProducts(text ? JSON.parse(text) : []);
@@ -43,7 +56,7 @@ export default function ProductsPage() {
 
   const fetchEcommerces = async () => {
     try {
-      const res = await fetch(`${API}/ecommerce`);
+      const res = await authFetch(`${API}/ecommerce`);
       if (!res.ok) return;
       const text = await res.text();
       setEcommerces(text ? JSON.parse(text) : []);
@@ -103,7 +116,7 @@ export default function ProductsPage() {
         : `${API}/product`;
       const method = editingProduct ? "PUT" : "POST";
 
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -127,7 +140,7 @@ export default function ProductsPage() {
   const handleDelete = async (id) => {
     if (!confirm("Tem certeza que deseja excluir este produto?")) return;
     try {
-      const res = await fetch(`${API}/product/delete?id=${id}`, { method: "DELETE" });
+      const res = await authFetch(`${API}/product/delete?id=${id}`, { method: "DELETE" });
       if (res.ok) fetchProducts();
     } catch (err) {
       console.error("Erro ao deletar produto:", err);
@@ -146,28 +159,7 @@ export default function ProductsPage() {
 
   return (
     <div className="dashboard-layout">
-      <aside className="sidebar glass">
-        <div className="sidebar-brand">
-          <h2 className="text-gradient">J.A.C.I.R.</h2>
-        </div>
-        <nav className="sidebar-nav">
-          <button className="nav-item" onClick={() => router.push("/dashboard")}>Dashboard</button>
-          <button className="nav-item active">Produtos</button>
-          <button className="nav-item" onClick={() => router.push("/ecommerce")}>Ecommerce</button>
-        </nav>
-        <div className="sidebar-footer">
-          <div className="user-profile">
-            <div className="avatar">JD</div>
-            <div className="user-info">
-              <p className="user-name">João D'Agostini</p>
-              <p className="user-role">Finance Manager</p>
-            </div>
-          </div>
-          <button className="logout-button" onClick={() => { localStorage.removeItem("user"); router.push("/login"); }}>
-            Sair
-          </button>
-        </div>
-      </aside>
+      <Sidebar/>
 
       <main className="main-content">
         <header className="content-header">
