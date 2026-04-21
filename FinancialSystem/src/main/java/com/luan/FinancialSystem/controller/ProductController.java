@@ -1,10 +1,13 @@
 package com.luan.FinancialSystem.controller;
 import com.luan.FinancialSystem.entity.Ecommerce;
 import com.luan.FinancialSystem.entity.Product;
+import com.luan.FinancialSystem.entity.User;
 import com.luan.FinancialSystem.service.ProductService;
 import jakarta.validation.Valid;
 import org.apache.coyote.Response;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -48,4 +51,6 @@ public class ProductController
             return ResponseEntity.badRequest().build();
         }
     }
+
+
 }

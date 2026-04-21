@@ -1,4 +1,4 @@
-package com.luan.FinancialSystem.JwtService;
+package com.luan.FinancialSystem.Jwt;
 
 import com.luan.FinancialSystem.service.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;

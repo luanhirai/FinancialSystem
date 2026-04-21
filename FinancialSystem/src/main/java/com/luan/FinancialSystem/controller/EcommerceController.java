@@ -28,8 +28,8 @@ public class EcommerceController
         return service.list();
     }
 
-    @PostMapping("/editEcommerce")
-    public ResponseEntity<Ecommerce> editEcommerce(@Valid @RequestBody Ecommerce ecommerce, Long id){
+    @PutMapping("/editEcommerce")
+    public ResponseEntity<Ecommerce> editEcommerce(@Valid @RequestBody Ecommerce ecommerce, @RequestParam Long id){
         return ResponseEntity.ok(service.update(id, ecommerce));
     }
 

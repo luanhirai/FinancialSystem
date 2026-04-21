@@ -1,4 +1,4 @@
-package com.luan.FinancialSystem.JwtService;
+package com.luan.FinancialSystem.Jwt;
 
 import com.luan.FinancialSystem.entity.User;
 import io.jsonwebtoken.Jwts;

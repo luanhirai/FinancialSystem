@@ -8,8 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product,Long> {
-    Optional<Product> findByName(String name);
+    @Query("SELECT p FROM Product p JOIN p.ecommerce e JOIN e.user u WHERE u.id = :userId")
+    List<Product> findProductsByUser(@Param("userId") Long userId);
 
-    @Query("SELECT p FROM Product p WHERE p.ecommerce.id = :id")
-    List<Product> findProductsByEcommerce(@Param("id") Long id);
 }
