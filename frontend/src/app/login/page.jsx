@@ -48,7 +48,7 @@ export default function LoginPage() {
 
       <div className="login-card glass animate-fade-in">
         <div className="login-header">
-          <h1 className="text-gradient">J.A.C.I.R.</h1>
+          <h1 className="text-gradient">FINSYS</h1>
           <p>Sistema de Relatório Financeiro</p>
         </div>
 
@@ -77,7 +77,6 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Mensagem de erro */}
           {error && (
             <div className="error-message">
               {error}

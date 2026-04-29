@@ -41,7 +41,6 @@ export default function ProductsPage() {
   });
 };
 
-  // ─── Fetches ───────────────────────────────────────────────
 
   const fetchProducts = async () => {
     try {
@@ -65,7 +64,6 @@ export default function ProductsPage() {
     }
   };
 
-  // ─── Modal ─────────────────────────────────────────────────
 
   const openCreate = () => {
     setEditingProduct(null);
@@ -93,7 +91,6 @@ export default function ProductsPage() {
     setError("");
   };
 
-  // ─── CRUD ──────────────────────────────────────────────────
 
   const handleSave = async () => {
     if (!form.name.trim()) { setError("Nome é obrigatório."); return; }

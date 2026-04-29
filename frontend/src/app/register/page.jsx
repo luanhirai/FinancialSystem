@@ -6,7 +6,7 @@ import "./register.css";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
+  const [name, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -22,13 +22,13 @@ export default function RegisterPage() {
       const response = await fetch("http://localhost:8080/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, username, phone, password }),
+        body: JSON.stringify({ email, name, phone, password }),
       });
 
       const message = await response.text();
 
       if (!response.ok) {
-        setError(message); // "Senha incorreta." ou "Usuário não encontrado."
+        setError(message);
         return;
       }
 
@@ -50,7 +50,7 @@ export default function RegisterPage() {
       
       <div className="login-card glass animate-fade-in">
         <div className="login-header">
-          <h1 className="text-gradient">J.A.C.I.R.</h1>
+          <h1 className="text-gradient">FINSYS</h1>
           <p>Sistema de Relatório Financeiro</p>
         </div>
         <div className="login-header">
@@ -71,13 +71,13 @@ export default function RegisterPage() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="username">Nome de Usuário</label>
+            <label htmlFor="name">Nome Completo</label>
             <input 
-              id="username"
+              id="name"
               type="text" 
               placeholder="seu nome de usuário" 
               required 
-              value={username}
+              value={name}
               onChange={(e) => setUsername(e.target.value)}
             />
           </div>

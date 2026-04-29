@@ -6,11 +6,11 @@ import { useRouter, usePathname } from "next/navigation";
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState({});  // começa vazio igual ao servidor
+  const [user, setUser] = useState({});
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
-    if (stored) setUser(JSON.parse(stored));  // só roda no cliente
+    if (stored) setUser(JSON.parse(stored));
   }, []);
 
   const initials = user.username
@@ -25,15 +25,29 @@ export default function Sidebar() {
     { label: "Configurações", path: "/settings" },
   ];
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    router.push("/login");
+  const handleLogout = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      console.log("Fazendo logout para usuário:", user);
+      
+      await fetch("http://localhost:8080/auth/logout", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${user?.token}`,
+        },
+      });
+    } catch (err) {
+      console.error("Erro ao fazer logout:", err);
+    } finally {
+      localStorage.removeItem("user");
+      router.push("/login");
+    }
   };
 
   return (
     <aside className="sidebar glass">
       <div className="sidebar-brand">
-        <h2 className="text-gradient">J.A.C.I.R.</h2>
+        <h2 className="text-gradient">FINSYS</h2>
       </div>
 
       <nav className="sidebar-nav">

@@ -7,15 +7,8 @@ import Sidebar from "../components/page";
 import "./dashboard.css";
 
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState("overview");
   const [user, setUser] = useState(null);
   const router = useRouter();
-
-  const handleLogout = async () => {
-    await fetch("http://localhost:8080/auth/logout", { method: "POST" });
-    localStorage.removeItem("user");
-    router.push("/login");
-  };
 
   const financialData = [
     { id: 1, label: "Saldo Total", value: "R$ 124.500,00", change: "+12%", type: "balance" },
@@ -37,7 +30,6 @@ export default function DashboardPage() {
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user"));
     setUser(user);
-    // user.id, user.email, user.username, user.phone
   }, []);
 
 
