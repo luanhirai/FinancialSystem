@@ -1,6 +1,7 @@
 package com.luan.FinancialSystem.Jwt;
 
 import com.luan.FinancialSystem.service.CustomUserDetailsService;
+import com.luan.FinancialSystem.service.TokenBlacklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,10 +19,14 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public JwtFilter(JwtService jwtService, CustomUserDetailsService userDetailsService) {
+    public JwtFilter(JwtService jwtService,
+                     CustomUserDetailsService userDetailsService,
+                     TokenBlacklistService tokenBlacklistService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
@@ -33,9 +38,17 @@ public class JwtFilter extends OncePerRequestFilter {
 
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
+
+            // Rejeita token invalidado pelo logout
+            if (tokenBlacklistService.isBlacklisted(token)) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("Token inválido. Faça login novamente.");
+                return;
+            }
+
             if (jwtService.isValid(token)) {
-                String email = jwtService.extractEmail(token);
-                UserDetails user = userDetailsService.loadUserByUsername(email);
+                Long userId = jwtService.extractUserId(token);
+                UserDetails user = userDetailsService.loadUserById(userId);
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(auth);

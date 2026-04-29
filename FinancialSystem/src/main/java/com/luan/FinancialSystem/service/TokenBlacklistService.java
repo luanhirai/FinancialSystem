@@ -1,4 +1,4 @@
-package com.luan.FinancialSystem.Jwt;
+package com.luan.FinancialSystem.service;
 
 import org.springframework.stereotype.Service;
 import java.util.HashSet;

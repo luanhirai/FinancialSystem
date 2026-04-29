@@ -20,21 +20,21 @@ public class EcommerceService {
     public EcommerceService(EcommerceRepository ecommerceRepository,
                             ProductRepository productRepository,
                             UserRepository userRepository,
-                            AuthenticatedUserService authenticatedUserService) { // ← adicionado
+                            AuthenticatedUserService authenticatedUserService) {
         this.ecommerceRepository = ecommerceRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
-        this.authenticatedUserService = authenticatedUserService; // ← adicionado
+        this.authenticatedUserService = authenticatedUserService;
     }
 
     public Ecommerce create(Ecommerce ecommerce) {
-        User user = authenticatedUserService.getLoggedUser(); // ← corrigido
+        User user = authenticatedUserService.getLoggedUser();
         ecommerce.setUser(user);
         return ecommerceRepository.save(ecommerce);
     }
 
     public List<Ecommerce> list() {
-        User user = authenticatedUserService.getLoggedUser(); // ← corrigido
+        User user = authenticatedUserService.getLoggedUser();
         System.out.println("Usuário logado ID: " + user.getId());
         return ecommerceRepository.findByUserId(user.getId());
     }

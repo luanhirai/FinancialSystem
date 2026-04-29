@@ -28,21 +28,7 @@ public class UserService {
         return repository.save(user);
     }
 
-    public Optional<User> findByEmail(String email) {  // ← retorna Optional
+    public Optional<User> findByEmail(String email) {
         return repository.findByEmail(email);
-    }
-
-    private User getLoggedUser() {
-        Authentication auth = SecurityContextHolder
-                .getContext()
-                .getAuthentication();
-
-        Object principal = auth.getPrincipal();
-
-        if (principal instanceof User) {
-            return (User) principal;
-        }
-
-        throw new RuntimeException("Usuário não autenticado");
     }
 }

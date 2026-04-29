@@ -10,10 +10,10 @@ import java.util.List;
 @Service
 public class ProductService {
     private final ProductRepository repository;
-    private final AuthenticatedUserService authenticatedUserService; // ← adicionado
+    private final AuthenticatedUserService authenticatedUserService;
 
     public ProductService(ProductRepository repository,
-                          AuthenticatedUserService authenticatedUserService) { // ← adicionado
+                          AuthenticatedUserService authenticatedUserService) {
         this.repository = repository;
         this.authenticatedUserService = authenticatedUserService;
     }

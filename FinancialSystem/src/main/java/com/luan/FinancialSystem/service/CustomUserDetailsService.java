@@ -19,4 +19,9 @@ public class CustomUserDetailsService implements UserDetailsService {
         return repository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User não encontrado"));
     }
+
+    public UserDetails loadUserById(Long id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User não encontrado"));
+    }
 }
