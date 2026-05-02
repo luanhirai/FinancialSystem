@@ -9,9 +9,9 @@ const authFetch = (url, options = {}) => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   return fetch(url, {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${user.token}`,
       ...options.headers,
     }
   });
@@ -21,7 +21,11 @@ export default function EcommercePage() {
   const [ecommerces, setEcommerces] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEcommerce, setEditingEcommerce] = useState(null);
-  const [form, setForm] = useState({ name: "" });
+  const [form, setForm] = useState({
+    name: "",
+    rate: "",
+    fixed_rate: ""
+  });
   const [error, setError] = useState("");
   const router = useRouter();
 
@@ -36,7 +40,11 @@ export default function EcommercePage() {
 
   const openCreate = () => {
     setEditingEcommerce(null);
-    setForm({ name: "" });
+    setForm({
+      name: "",
+      rate: "",
+      fixed_rate: ""
+    });
     setError("");
     setIsModalOpen(true);
   };
@@ -54,6 +62,11 @@ export default function EcommercePage() {
       : "http://localhost:8080/ecommerce";
     const method = editingEcommerce ? "PUT" : "POST";
 
+    if (form.rate < 0 || form.fixed_rate < 0) { 
+      setError("Erro ao salvar ecommerce."); 
+      return; 
+    }
+
     try {
       const res = await authFetch(url, {
         method,
@@ -69,12 +82,20 @@ export default function EcommercePage() {
   };
 
   const handleDelete = async (id) => {
-    const res = await authFetch(`http://localhost:8080/ecommerce/${id}`, { method: "DELETE" });
+  const confirmDelete = window.confirm("⚠️ Tem certeza que deseja excluir?\nEssa ação não pode ser desfeita.");
+
+    if (!confirmDelete) 
+      return;
+
+    const res = await authFetch(`http://localhost:8080/ecommerce/${id}`, { 
+      method: "DELETE" 
+    });
+
     if (!res.ok) {
-      const msg = await res.text();
-      alert(msg);
+      alert("Não é possível deletar o ecommerce, há produtos vinculados.");
       return;
     }
+
     fetchEcommerces();
   };
 

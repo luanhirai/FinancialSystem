@@ -20,6 +20,7 @@ export default function LoginPage() {
       const response = await fetch("http://localhost:8080/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
@@ -28,10 +29,8 @@ export default function LoginPage() {
         setError(message || "Credenciais inválidas.");
         return;
       }
-
-      const userData = await response.json();
-      localStorage.setItem("user", JSON.stringify(userData));
       router.push("/dashboard");
+      
     } catch (err) {
       setError("Não foi possível conectar ao servidor.");
     } finally {

@@ -31,15 +31,15 @@ export default function ProductsPage() {
 
   const authFetch = (url, options = {}) => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
-  return fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${user.token}`,
-      ...options.headers,
-    }
-  });
-};
+    return fetch(url, {
+      ...options,
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      }
+    });
+  };
 
 
   const fetchProducts = async () => {
@@ -93,7 +93,16 @@ export default function ProductsPage() {
 
 
   const handleSave = async () => {
-    if (!form.name.trim()) { setError("Nome é obrigatório."); return; }
+    if (!form.name.trim()) { 
+      setError("Nome é obrigatório."); 
+      return; 
+    }
+
+
+    if(form.price < 0 || form.original_price < 0 || form.cost < 0 || form.quantity < 0){
+      setError("Os valores devem ser inteiros e maiores que 0");
+      return;
+    }
 
     setLoading(true);
     setError("");

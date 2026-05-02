@@ -9,8 +9,25 @@ export default function Sidebar() {
   const [user, setUser] = useState({});
 
   useEffect(() => {
-    const stored = localStorage.getItem("user");
-    if (stored) setUser(JSON.parse(stored));
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("http://localhost:8080/auth/me", {
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          router.push("/login");
+          return;
+        }
+
+        const data = await res.json();
+        setUser(data);
+      } catch {
+        router.push("/login");
+      }
+    };
+
+    fetchUser();
   }, []);
 
   const initials = user.username
@@ -25,21 +42,15 @@ export default function Sidebar() {
     { label: "Configurações", path: "/settings" },
   ];
 
-  const handleLogout = async () => {
+ const handleLogout = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      console.log("Fazendo logout para usuário:", user);
-      
       await fetch("http://localhost:8080/auth/logout", {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${user?.token}`,
-        },
+        credentials: "include",
       });
     } catch (err) {
       console.error("Erro ao fazer logout:", err);
     } finally {
-      localStorage.removeItem("user");
       router.push("/login");
     }
   };
