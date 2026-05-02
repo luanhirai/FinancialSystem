@@ -4,8 +4,11 @@ import com.luan.FinancialSystem.Jwt.JwtService;
 import com.luan.FinancialSystem.entity.User;
 import com.luan.FinancialSystem.service.TokenBlacklistService;
 import com.luan.FinancialSystem.service.UserService;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -51,7 +54,8 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody User req) {
+    public ResponseEntity<?> login(@RequestBody User req, HttpServletResponse response) {
+
         User user = userService.findByEmail(req.getEmail())
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
@@ -60,22 +64,57 @@ public class AuthController {
         }
 
         String token = jwtService.generateToken(user);
-        return ResponseEntity.ok(Map.of(
-                "token", token,
-                "username", user.getName(),
-                "email", user.getEmail()
-        ));
+
+        Cookie cookie = new Cookie("token", token);
+        cookie.setHttpOnly(true);
+        cookie.setPath("/");
+        cookie.setMaxAge(60 * 60 * 24);
+
+        response.addCookie(cookie);
+
+        return ResponseEntity.ok("Login realizado com sucesso");
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(HttpServletRequest request) {
-        String header = request.getHeader("Authorization");
+    public ResponseEntity<String> logout(HttpServletRequest request, HttpServletResponse response) {
 
-        if (header == null || !header.startsWith("Bearer ")) {
-            return ResponseEntity.badRequest().body("Token não informado.");
+        String token = null;
+
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("token".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                }
+            }
         }
 
-        tokenBlacklistService.invalidate(header.substring(7));
+        if (token == null) {
+            return ResponseEntity.badRequest().body("Token não encontrado.");
+        }
+        tokenBlacklistService.invalidate(token);
+
+        Cookie cookie = new Cookie("token", null);
+        cookie.setMaxAge(0);
+        cookie.setPath("/");
+
+        response.addCookie(cookie);
+
         return ResponseEntity.ok("Logout realizado com sucesso.");
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> me(Authentication auth) {
+
+        if (auth == null || !auth.isAuthenticated()) {
+            return ResponseEntity.status(401).body("Não autenticado");
+        }
+
+        User user = (User) auth.getPrincipal();
+
+        return ResponseEntity.ok(Map.of(
+                "id", user.getId(),
+                "name", user.getName(),
+                "email", user.getEmail()
+        ));
     }
 }

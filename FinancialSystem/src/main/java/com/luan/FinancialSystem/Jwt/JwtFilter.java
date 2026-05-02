@@ -4,6 +4,7 @@ import com.luan.FinancialSystem.service.CustomUserDetailsService;
 import com.luan.FinancialSystem.service.TokenBlacklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,13 +34,18 @@ public class JwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
+        String token = null;
 
-        String header = request.getHeader("Authorization");
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("token".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                }
+            }
+        }
 
-        if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
+        if (token != null) {
 
-            // Rejeita token invalidado pelo logout
             if (tokenBlacklistService.isBlacklisted(token)) {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.getWriter().write("Token inválido. Faça login novamente.");
@@ -49,11 +55,14 @@ public class JwtFilter extends OncePerRequestFilter {
             if (jwtService.isValid(token)) {
                 Long userId = jwtService.extractUserId(token);
                 UserDetails user = userDetailsService.loadUserById(userId);
+
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
         }
+
         chain.doFilter(request, response);
     }
 }
