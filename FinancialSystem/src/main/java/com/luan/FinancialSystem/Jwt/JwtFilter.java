@@ -44,6 +44,13 @@ public class JwtFilter extends OncePerRequestFilter {
             }
         }
 
+        if (token == null) {
+            String authorization = request.getHeader("Authorization");
+            if (authorization != null && authorization.startsWith("Bearer ")) {
+                token = authorization.substring(7);
+            }
+        }
+
         if (token != null) {
 
             if (tokenBlacklistService.isBlacklisted(token)) {
