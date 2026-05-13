@@ -13,4 +13,7 @@ public interface ProductRepository extends JpaRepository<Product,Long> {
 
     @Query("SELECT p FROM Product p WHERE p.id_olist = :idOlist")
     Optional<Product> findByIdOlist(@Param("idOlist") String idOlist);
+
+    @Query("SELECT p FROM Product p JOIN p.ecommerce e JOIN e.user u WHERE p.id_olist = :idOlist AND u.id = :userId")
+    Optional<Product> findByIdOlistAndUserId(@Param("idOlist") String idOlist, @Param("userId") Long userId);
 }

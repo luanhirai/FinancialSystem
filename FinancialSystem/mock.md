@@ -1,179 +1,127 @@
+```json
 {
-"data": {
-"id": 987654321,
-"numero": "PV-2025-004782",
-"numeroPedidoExterno": "MKTPL-B2C-00412",
-"situacao": "aprovado",
-"dataPedido": "2025-05-06T14:32:10-03:00",
-"dataPrevisao": "2025-05-10",
-"dataSaida": null,
-"observacoes": "Cliente solicitou embalagem para presente. Entregar no período da manhã.",
-"observacoesInternas": "Verificar estoque do item SKU-7823 antes de faturar.",
-
-    "cliente": {
-      "id": 112233,
-      "codigo": "CLI-00891",
-      "nome": "Maria Fernanda Oliveira",
-      "tipoPessoa": "F",
-      "cpfCnpj": "345.678.901-23",
-      "inscricaoEstadual": null,
-      "email": "mariafernanda.oliveira@email.com.br",
-      "telefone": "(11) 98765-4321",
-      "celular": "(11) 91234-5678",
-      "endereco": "Rua das Orquídeas, 542",
-      "bairro": "Jardim Primavera",
-      "cidade": "São Paulo",
-      "uf": "SP",
-      "cep": "04567-890",
-      "pais": "Brasil"
-    },
-
-    "enderecoEntrega": {
-      "nome": "Maria Fernanda Oliveira",
-      "endereco": "Rua das Orquídeas, 542",
-      "numero": "542",
-      "complemento": "Apto 31",
-      "bairro": "Jardim Primavera",
-      "cidade": "São Paulo",
-      "uf": "SP",
-      "cep": "04567-890",
-      "pais": "Brasil"
-    },
-
-    "itens": [
+  "itens": [
       {
-        "id": 10001,
-        "sequencia": 1,
-        "produto": {
-          "id": 55001,
-          "codigo": "SKU-7823",
-          "nome": "Tênis Esportivo Runner Pro - Preto - Nº 38",
-          "unidade": "UN",
-          "gtin": "7891234567890",
-          "ncm": "6404.11.00"
+        "id": 101,
+        "sku": "CAM-BASIC-P",
+        "descricao": "Camiseta Basic Preta",
+        "tipo": "S",
+        "situacao": "A",
+        "unidade": "UN",
+        "precos": {
+          "preco": 75.00,
+          "precoPromocional": 75.00,
+          "precoCusto": 32.00,
+          "precoCustoMedio": 32.00
         },
-        "quantidade": 2,
-        "valorUnitario": 349.90,
-        "valorDesconto": 34.99,
-        "valorAcrescimo": 0.00,
-        "valorTotal": 664.81,
-        "aliquotaIpi": 0.00,
-        "aliquotaIcms": 12.00,
-        "cfop": "6.102",
-        "origemProduto": "0"
+        "estoque": {
+          "controlar": true,
+          "localizacao": "A1",
+          "quantidade": 40
+        },
+        "ecommerce": {
+          "id": 55,
+          "nome": "Mercado Livre"
+        }
       },
       {
-        "id": 10002,
-        "sequencia": 2,
-        "produto": {
-          "id": 55002,
-          "codigo": "SKU-3341",
-          "nome": "Meia Esportiva Cano Alto Dry-Fit - Kit com 3 pares",
-          "unidade": "KT",
-          "gtin": "7890987654321",
-          "ncm": "6115.95.00"
+        "id": 202,
+        "sku": "BON-CLASSIC",
+        "descricao": "Bone Classic",
+        "tipo": "S",
+        "situacao": "A",
+        "unidade": "UN",
+        "precos": {
+          "preco": 100.00,
+          "precoPromocional": 100.00,
+          "precoCusto": 45.00,
+          "precoCustoMedio": 45.00
         },
-        "quantidade": 1,
-        "valorUnitario": 59.90,
-        "valorDesconto": 0.00,
-        "valorAcrescimo": 0.00,
-        "valorTotal": 59.90,
-        "aliquotaIpi": 0.00,
-        "aliquotaIcms": 12.00,
-        "cfop": "6.102",
-        "origemProduto": "0"
+        "estoque": {
+          "controlar": true,
+          "localizacao": "A1",
+          "quantidade": 18
+        },
+        "ecommerce": {
+          "id": 55,
+          "nome": "Mercado Livre"
+        }
       },
       {
-        "id": 10003,
-        "sequencia": 3,
-        "produto": {
-          "id": 55003,
-          "codigo": "SKU-1100",
-          "nome": "Garrafa Térmica Inox 750ml - Azul",
-          "unidade": "UN",
-          "gtin": "7899876543210",
-          "ncm": "9617.00.00"
+        "id": 303,
+        "sku": "CAN-ECO-500",
+        "descricao": "Caneca Eco 500ml",
+        "tipo": "S",
+        "situacao": "A",
+        "unidade": "UN",
+        "precos": {
+          "preco": 59.90,
+          "precoPromocional": 59.90,
+          "precoCusto": 21.00,
+          "precoCustoMedio": 21.00
         },
-        "quantidade": 1,
-        "valorUnitario": 89.90,
-        "valorDesconto": 9.00,
-        "valorAcrescimo": 0.00,
-        "valorTotal": 80.90,
-        "aliquotaIpi": 0.00,
-        "aliquotaIcms": 12.00,
-        "cfop": "6.102",
-        "origemProduto": "0"
+        "estoque": {
+          "controlar": true,
+          "localizacao": "A1",
+          "quantidade": 60
+        },
+        "ecommerce": {
+          "id": 77,
+          "nome": "Shopee"
+        }
+      },
+      {
+        "id": 304,
+        "sku": "MOCH-URBAN-20L",
+        "descricao": "Mochila Urban 20L",
+        "tipo": "S",
+        "situacao": "A",
+        "unidade": "UN",
+        "precos": {
+          "preco": 189.90,
+          "precoPromocional": 189.90,
+          "precoCusto": 88.40,
+          "precoCustoMedio": 88.40
+        },
+        "estoque": {
+          "controlar": true,
+          "localizacao": "A1",
+          "quantidade": 25
+        },
+        "ecommerce": {
+          "id": 88,
+          "nome": "Amazon"
+        }
+      },
+      {
+        "id": 305,
+        "sku": "GARRAFA-INOX-750",
+        "descricao": "Garrafa Inox 750ml",
+        "tipo": "S",
+        "situacao": "A",
+        "unidade": "UN",
+        "precos": {
+          "preco": 79.90,
+          "precoPromocional": 79.90,
+          "precoCusto": 31.70,
+          "precoCustoMedio": 31.70
+        },
+        "estoque": {
+          "controlar": true,
+          "localizacao": "A1",
+          "quantidade": 80
+        },
+        "ecommerce": {
+          "id": 99,
+          "nome": "Site Proprio"
+        }
       }
-    ],
-
-    "totais": {
-      "subtotalItens": 499.70,
-      "totalDesconto": 43.99,
-      "totalAcrescimo": 0.00,
-      "totalFrete": 18.90,
-      "totalIpi": 0.00,
-      "totalImpostos": 0.00,
-      "totalPedido": 805.61
-    },
-
-    "formasPagamento": [
-      {
-        "id": 201,
-        "formaPagamento": {
-          "id": 3,
-          "nome": "Cartão de Crédito"
-        },
-        "parcelas": 3,
-        "valor": 805.61,
-        "valorParcela": 268.54,
-        "dataVencimento": "2025-06-06"
-      }
-    ],
-
-    "frete": {
-      "modalidade": "CIF",
-      "valorFrete": 18.90,
-      "prazoEntrega": 4,
-      "transportadora": {
-        "id": 77,
-        "nome": "Transportadora Expressa SP",
-        "cnpj": "11.222.333/0001-44"
-      },
-      "codigoRastreio": "BR789456123SP",
-      "servico": "SEDEX"
-    },
-
-    "vendedor": {
-      "id": 8,
-      "nome": "Carlos Eduardo Mendes",
-      "email": "carlos.mendes@loja.com.br"
-    },
-
-    "intermediador": {
-      "id": 5,
-      "nome": "Mercado Livre",
-      "cnpj": "33.168.308/0001-52"
-    },
-
-    "ecommerce": {
-      "numeroPedido": "MKTPL-B2C-00412",
-      "canal": "Mercado Livre",
-      "marketplace": true
-    },
-
-    "tags": ["marketplace", "presente", "frete-gratis-nao"],
-
-    "historico": [
-      {
-        "data": "2025-05-06T14:32:10-03:00",
-        "situacao": "aberto",
-        "descricao": "Pedido criado via integração Mercado Livre"
-      },
-      {
-        "data": "2025-05-06T15:10:44-03:00",
-        "situacao": "aprovado",
-        "descricao": "Pagamento confirmado pelo intermediador"
-      }
-    ]
+  ],
+  "paginacao": {
+    "pagina": 1,
+    "limite": 5,
+    "total": 5,
+    "totalPaginas": 1
+  }
 }
-}
+```
