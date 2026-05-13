@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 export default function Sidebar() {
   const router = useRouter();
@@ -28,21 +28,21 @@ export default function Sidebar() {
     };
 
     fetchUser();
-  }, []);
+  }, [router]);
 
-  const initials = user.username
-    ? user.username.slice(0, 2).toUpperCase()
-    : "";
+  const displayName = user.name || user.username || "Usuario";
+  const displayEmail = user.email || "";
+  const initials = displayName.slice(0, 2).toUpperCase();
 
   const navItems = [
     { label: "Dashboard", path: "/dashboard" },
     { label: "Produtos", path: "/products" },
     { label: "Ecommerce", path: "/ecommerce" },
-    { label: "Relatórios", path: "/reports" },
-    { label: "Configurações", path: "/settings" },
+    { label: "Relatorios", path: "/reports" },
+    { label: "Configuracoes", path: "/settings" },
   ];
 
- const handleLogout = async () => {
+  const handleLogout = async () => {
     try {
       await fetch("http://localhost:8080/auth/logout", {
         method: "POST",
@@ -77,8 +77,8 @@ export default function Sidebar() {
         <div className="user-profile">
           <div className="avatar">{initials}</div>
           <div className="user-info">
-            <p className="user-name">{user.username || "Usuário"}</p>
-            <p className="user-role">{user.email || ""}</p>
+            <p className="user-name">{displayName}</p>
+            <p className="user-role">{displayEmail}</p>
           </div>
         </div>
         <button className="logout-button" onClick={handleLogout}>

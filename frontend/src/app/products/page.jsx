@@ -7,13 +7,42 @@ import Sidebar from "../components/page";
 
 const API = "http://localhost:8080";
 
+const productColumns = [
+  { key: "name", label: "Nome" },
+  { key: "original_price", label: "Preco Original" },
+  { key: "cost", label: "Custo" },
+  { key: "margin", label: "Margem" },
+  { key: "quantity", label: "Quantidade" },
+  { key: "id_olist", label: "ID Olist" },
+  { key: "ecommerce", label: "Ecommerce" },
+];
+
+const defaultVisibleColumns = productColumns.map((column) => column.key);
+
+const valueFilterOptions = [
+  { key: "original_price", label: "Preco Original" },
+  { key: "cost", label: "Custo" },
+  { key: "quantity", label: "Quantidade" },
+  { key: "margin", label: "Margem" },
+];
+
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [ecommerces, setEcommerces] = useState([]);
+  const [visibleColumns, setVisibleColumns] = useState(defaultVisibleColumns);
+  const [filters, setFilters] = useState({
+    name: "",
+    ecommerceId: "",
+    valueField: "original_price",
+    minValue: "",
+    maxValue: "",
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [importingTiny, setImportingTiny] = useState(false);
+  const [importMessage, setImportMessage] = useState("");
   const [form, setForm] = useState({
     name: "",
     original_price: "",
@@ -22,7 +51,6 @@ export default function ProductsPage() {
     id_olist: "",
     ecommerce: { id: "" },
   });
-  const router = useRouter();
 
   useEffect(() => {
     fetchProducts();
@@ -153,6 +181,34 @@ export default function ProductsPage() {
     }
   };
 
+  const handleImportTiny = async () => {
+    setImportingTiny(true);
+    setImportMessage("");
+    setError("");
+
+    try {
+      const res = await authFetch(`${API}/produtos/importar-tiny`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const msg = await res.text();
+        setError(msg || "Erro ao importar produtos do Tiny.");
+        return;
+      }
+
+      const text = await res.text();
+      const importedProducts = text ? JSON.parse(text) : [];
+      await Promise.all([fetchProducts(), fetchEcommerces()]);
+      setImportMessage(`${importedProducts.length} produtos importados do mock Tiny.`);
+    } catch (err) {
+      console.error("Erro ao importar produtos do Tiny:", err);
+      setError("Erro ao conectar com o servidor.");
+    } finally {
+      setImportingTiny(false);
+    }
+  };
+
   const field = (key) => ({
     value: key === "ecommerce" ? form.ecommerce.id : form[key],
     onChange: (e) =>
@@ -161,7 +217,53 @@ export default function ProductsPage() {
         : setForm({ ...form, [key]: e.target.value }),
   });
 
-  // ─── Render ────────────────────────────────────────────────
+  const isColumnVisible = (key) => visibleColumns.includes(key);
+
+  const updateFilter = (key, value) => {
+    setFilters((currentFilters) => ({ ...currentFilters, [key]: value }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      name: "",
+      ecommerceId: "",
+      valueField: "original_price",
+      minValue: "",
+      maxValue: "",
+    });
+  };
+
+  const getProductMargin = (product) => {
+    const price = Number(product.original_price);
+    const cost = Number(product.cost);
+
+    if (!price || Number.isNaN(price) || Number.isNaN(cost)) return null;
+
+    return ((price - cost) / price) * 100;
+  };
+
+  const getProductValue = (product, fieldKey) => {
+    if (fieldKey === "margin") return getProductMargin(product);
+
+    const value = Number(product[fieldKey]);
+    return Number.isNaN(value) ? null : value;
+  };
+
+  const filteredProducts = products.filter((product) => {
+    const productName = (product.name || "").toLowerCase();
+    const searchName = filters.name.trim().toLowerCase();
+    const productEcommerceId = product.ecommerce?.id ? String(product.ecommerce.id) : "";
+    const value = getProductValue(product, filters.valueField);
+    const minValue = filters.minValue === "" ? null : Number(filters.minValue);
+    const maxValue = filters.maxValue === "" ? null : Number(filters.maxValue);
+
+    if (searchName && !productName.includes(searchName)) return false;
+    if (filters.ecommerceId && productEcommerceId !== filters.ecommerceId) return false;
+    if (minValue !== null && (value === null || value < minValue)) return false;
+    if (maxValue !== null && (value === null || value > maxValue)) return false;
+
+    return true;
+  });
 
   return (
     <div className="dashboard-layout">
@@ -174,52 +276,126 @@ export default function ProductsPage() {
             <p>Gerencie os produtos cadastrados no sistema.</p>
           </div>
           <div className="header-actions">
+            <button
+              className="btn-secondary tiny-import-button"
+              type="button"
+              onClick={handleImportTiny}
+              disabled={importingTiny}
+            >
+              {importingTiny ? "Importando..." : "Importar Tiny"}
+            </button>
             <button className="btn-primary" onClick={openCreate}>+ Novo Produto</button>
           </div>
         </header>
 
+        {importMessage && <p className="success-message">{importMessage}</p>}
+
         <section className="content-section glass animate-fade-in">
+          <div className="product-filters">
+            <div className="filter-group search-filter">
+              <label>Nome do produto</label>
+              <input
+                value={filters.name}
+                onChange={(e) => updateFilter("name", e.target.value)}
+                placeholder="Buscar por nome"
+              />
+            </div>
+
+            <div className="filter-group">
+              <label>Ecommerce</label>
+              <select value={filters.ecommerceId} onChange={(e) => updateFilter("ecommerceId", e.target.value)}>
+                <option value="">Todos</option>
+                {ecommerces.map((ecommerce) => (
+                  <option key={ecommerce.id} value={ecommerce.id}>{ecommerce.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Campo de valor</label>
+              <select
+                value={filters.valueField}
+                onChange={(e) => updateFilter("valueField", e.target.value)}
+              >
+                {valueFilterOptions.map((option) => (
+                  <option key={option.key} value={option.key}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-group compact-filter">
+              <label>Valor min.</label>
+              <input
+                type="number"
+                value={filters.minValue}
+                onChange={(e) => updateFilter("minValue", e.target.value)}
+                placeholder="0"
+              />
+            </div>
+
+            <div className="filter-group compact-filter">
+              <label>Valor max.</label>
+              <input
+                type="number"
+                value={filters.maxValue}
+                onChange={(e) => updateFilter("maxValue", e.target.value)}
+                placeholder="999"
+              />
+            </div>
+
+            <button className="btn-secondary clear-filters-button" type="button" onClick={clearFilters}>
+              Limpar filtros
+            </button>
+          </div>
+
+          <div className="table-toolbar">
+            <div>
+              <h2>Colunas da tabela</h2>
+              <p>{filteredProducts.length} de {products.length} produtos exibidos.</p>
+            </div>
+          </div>
+
           <div className="table-responsive">
             <table>
               <thead>
                 <tr>
-                  <th>Nome</th>
-                  <th>Preço Original</th>
-                  <th>Custo</th>
-                  <th>Margem</th>
-                  <th>Quantidade</th>
-                  <th>ID Olist</th>
-                  <th>Ecommerce</th>
+                  {isColumnVisible("name") && <th>Nome</th>}
+                  {isColumnVisible("original_price") && <th>Preco Original</th>}
+                  {isColumnVisible("cost") && <th>Custo</th>}
+                  {isColumnVisible("margin") && <th>Margem</th>}
+                  {isColumnVisible("quantity") && <th>Quantidade</th>}
+                  {isColumnVisible("id_olist") && <th>ID Olist</th>}
+                  {isColumnVisible("ecommerce") && <th>Ecommerce</th>}
                   <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {products.length === 0 && (
+                {filteredProducts.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: "32px" }}>
-                      Nenhum produto cadastrado.
+                    <td colSpan={visibleColumns.length + 1} style={{ textAlign: "center", color: "var(--text-muted)", padding: "32px" }}>
+                      {products.length === 0 ? "Nenhum produto cadastrado." : "Nenhum produto encontrado com esses filtros."}
                     </td>
                   </tr>
                 )}
-                {products.map((p) => {
-                  const margin = p.original_price && p.cost
-                    ? (((p.original_price - p.cost) / p.original_price) * 100).toFixed(1)
-                    : null;
+                {filteredProducts.map((p) => {
+                  const margin = getProductMargin(p);
                   return (
                     <tr key={p.id}>
-                      <td><strong>{p.name}</strong></td>
-                      <td>R$ {Number(p.original_price || 0).toFixed(2)}</td>
-                      <td>R$ {Number(p.cost || 0).toFixed(2)}</td>
-                      <td>
-                        {margin !== null && (
-                          <span className={`stat-change ${margin >= 0 ? "positive" : "negative"}`}>
-                            {margin}%
-                          </span>
-                        )}
-                      </td>
-                      <td>{p.quantity ?? "—"}</td>
-                      <td style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>{p.id_olist || "—"}</td>
-                      <td><span className="badge">{p.ecommerce?.name || "—"}</span></td>
+                      {isColumnVisible("name") && <td><strong>{p.name}</strong></td>}
+                      {isColumnVisible("original_price") && <td>R$ {Number(p.original_price || 0).toFixed(2)}</td>}
+                      {isColumnVisible("cost") && <td>R$ {Number(p.cost || 0).toFixed(2)}</td>}
+                      {isColumnVisible("margin") && (
+                        <td>
+                          {margin !== null && (
+                            <span className={`stat-change ${margin >= 0 ? "positive" : "negative"}`}>
+                              {margin.toFixed(1)}%
+                            </span>
+                          )}
+                        </td>
+                      )}
+                      {isColumnVisible("quantity") && <td>{p.quantity ?? "-"}</td>}
+                      {isColumnVisible("id_olist") && <td style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>{p.id_olist || "-"}</td>}
+                      {isColumnVisible("ecommerce") && <td><span className="badge">{p.ecommerce?.name || "-"}</span></td>}
                       <td>
                         <div className="action-buttons">
                           <button className="btn-edit" onClick={() => openEdit(p)}>Editar</button>
