@@ -58,7 +58,6 @@ export default function ProductsPage() {
   }, []);
 
   const authFetch = (url, options = {}) => {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
     return fetch(url, {
       ...options,
       credentials: "include",

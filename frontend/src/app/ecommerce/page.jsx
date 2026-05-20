@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import "./ecommerce.css";
 import Sidebar from "../components/page";
 
 const authFetch = (url, options = {}) => {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
   return fetch(url, {
     ...options,
     credentials: "include",
@@ -27,7 +25,6 @@ export default function EcommercePage() {
     fixed_rate: ""
   });
   const [error, setError] = useState("");
-  const router = useRouter();
 
   useEffect(() => { fetchEcommerces(); }, []);
 

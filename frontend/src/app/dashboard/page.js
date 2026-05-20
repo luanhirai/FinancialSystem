@@ -53,11 +53,6 @@ export default function DashboardPage() {
           authFetch(`${API}/ecommerce`),
         ]);
 
-        if (userRes.status === 401) {
-          router.push("/login");
-          return;
-        }
-
         if (!userRes.ok || !productsRes.ok || !ecommercesRes.ok) {
           throw new Error("Nao foi possivel carregar os dados do dashboard.");
         }

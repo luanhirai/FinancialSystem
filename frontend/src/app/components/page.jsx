@@ -16,19 +16,16 @@ export default function Sidebar() {
         });
 
         if (!res.ok) {
-          router.push("/login");
           return;
         }
 
         const data = await res.json();
         setUser(data);
-      } catch {
-        router.push("/login");
-      }
+      } catch {}
     };
 
     fetchUser();
-  }, [router]);
+  }, []);
 
   const displayName = user.name || user.username || "Usuario";
   const displayEmail = user.email || "";

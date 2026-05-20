@@ -29,7 +29,9 @@ export default function LoginPage() {
         setError(message || "Credenciais inválidas.");
         return;
       }
-      router.push("/dashboard");
+      const redirectTo = new URLSearchParams(window.location.search).get("redirect");
+      const isSafeRedirect = redirectTo?.startsWith("/") && !redirectTo.startsWith("//");
+      router.push(isSafeRedirect ? redirectTo : "/dashboard");
       
     } catch (err) {
       setError("Não foi possível conectar ao servidor.");
