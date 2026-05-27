@@ -50,6 +50,36 @@ export default function RulesConfigurationPage() {
         fetchPolicySetting();
     }, []);
 
+    const updateTaxPercentage = (value) => {
+        if (value === "") {
+            setTaxPercentage("");
+            return;
+        }
+
+        const rate = Number(value);
+
+        if (Number.isNaN(rate)) {
+            return;
+        }
+
+        setTaxPercentage(rate < 0 ? "0" : value);
+    };
+
+    const preventNegativeInput = (event) => {
+        if (event.key === "-" || event.key === "+") {
+            event.preventDefault();
+        }
+    };
+
+    const preventNegativePaste = (event) => {
+        const pastedValue = event.clipboardData.getData("text");
+
+        if (Number(pastedValue) < 0 || pastedValue.includes("-")) {
+            event.preventDefault();
+            setTaxPercentage("0");
+        }
+    };
+
     const savePolicySetting = async () => {
         const rate = Number(taxPercentage);
 
@@ -121,7 +151,9 @@ export default function RulesConfigurationPage() {
                                 min="0"
                                 step="0.01"
                                 value={taxPercentage}
-                                onChange={(event) => setTaxPercentage(event.target.value)}
+                                onChange={(event) => updateTaxPercentage(event.target.value)}
+                                onKeyDown={preventNegativeInput}
+                                onPaste={preventNegativePaste}
                                 placeholder="Ex: 12.5"
                                 disabled={loading || saving}
                             />
