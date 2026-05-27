@@ -34,9 +34,11 @@ export default function Sidebar() {
   const navItems = [
     { label: "Dashboard", path: "/dashboard" },
     { label: "Produtos", path: "/products" },
+    { label: "Importacao Tiny", path: "/importacao-tiny" },
     { label: "Ecommerce", path: "/ecommerce" },
     { label: "Relatorios", path: "/reports" },
-    { label: "Configuracoes", path: "/settings" },
+    { label: "Perfil", path: "/profile" },
+    { label: "Configuracoes", path: "/rules_configuration" },
   ];
 
   const handleLogout = async () => {

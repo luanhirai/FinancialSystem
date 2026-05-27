@@ -1,0 +1,9 @@
+@import "../products/products.css";
+
+.tax-config-field {
+  max-width: 320px;
+}
+
+.tax-config-actions {
+  margin-top: 20px;
+}

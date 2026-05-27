@@ -61,8 +61,10 @@ export const config = {
     "/register",
     "/dashboard/:path*",
     "/products/:path*",
+    "/importacao-tiny/:path*",
     "/ecommerce/:path*",
-    "/tax_rules/:path*",
+    "/profile/:path*",
+    "/rules_configuration/:path*",
     "/reports/:path*",
     "/settings/:path*"
   ]

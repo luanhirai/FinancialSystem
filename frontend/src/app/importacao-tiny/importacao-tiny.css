@@ -1,0 +1,101 @@
+@import "../products/products.css";
+
+.tiny-period-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 240px)) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.tiny-search-button {
+  min-height: 40px;
+}
+
+.tiny-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.tiny-order-id {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.status-pill.cancelado {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
+
+.tiny-detail-grid,
+.tiny-imported-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.tiny-detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tiny-imported-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tiny-product-item,
+.tiny-imported-card {
+  min-height: 92px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.tiny-product-item div,
+.tiny-imported-card {
+  min-width: 0;
+}
+
+.tiny-product-item strong,
+.tiny-imported-card strong {
+  line-height: 1.35;
+}
+
+.tiny-product-item span,
+.tiny-imported-card span {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.tiny-product-item p,
+.tiny-imported-card p {
+  color: var(--accent-primary);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+@media (max-width: 1200px) {
+  .tiny-stats-grid,
+  .tiny-imported-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .tiny-period-form,
+  .tiny-stats-grid,
+  .tiny-detail-grid,
+  .tiny-imported-grid {
+    grid-template-columns: 1fr;
+  }
+}
