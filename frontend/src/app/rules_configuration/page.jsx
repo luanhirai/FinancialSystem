@@ -1,20 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { authFetch } from "@/lib/api";
 import Sidebar from "../components/page";
 import "./rules_configuration.css";
-
-const API = "http://localhost:8080";
-
-const authFetch = (url, options = {}) =>
-    fetch(url, {
-        ...options,
-        credentials: "include",
-        headers: {
-            "Content-Type": "application/json",
-            ...options.headers,
-        },
-    });
 
 export default function RulesConfigurationPage() {
     const [taxPercentage, setTaxPercentage] = useState("");
@@ -29,7 +18,7 @@ export default function RulesConfigurationPage() {
                 setLoading(true);
                 setError("");
 
-                const res = await authFetch(`${API}/policy-settings`);
+                const res = await authFetch("/policy-settings");
 
                 if (!res.ok) {
                     const msg = await res.text();
@@ -100,7 +89,7 @@ export default function RulesConfigurationPage() {
             setError("");
             setMessage("");
 
-            const res = await authFetch(`${API}/policy-settings`, {
+            const res = await authFetch("/policy-settings", {
                 method: "POST",
                 body: JSON.stringify({ rate }),
             });

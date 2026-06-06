@@ -2,11 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { authFetch } from "@/lib/api";
 import Sidebar from "../components/page";
 
 import "./dashboard.css";
-
-const API = "http://localhost:8080";
 
 const currency = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -17,16 +16,6 @@ const percent = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
 });
-
-const authFetch = (url, options = {}) =>
-  fetch(url, {
-    ...options,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
 
 const toNumber = (value) => {
   const number = Number(value);
@@ -48,9 +37,9 @@ export default function DashboardPage() {
         setError("");
 
         const [userRes, productsRes, ecommercesRes] = await Promise.all([
-          authFetch(`${API}/auth/me`),
-          authFetch(`${API}/product`),
-          authFetch(`${API}/ecommerce`),
+          authFetch("/auth/me"),
+          authFetch("/product"),
+          authFetch("/ecommerce"),
         ]);
 
         if (!userRes.ok || !productsRes.ok || !ecommercesRes.ok) {

@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { authFetch } from "@/lib/api";
 import "./products.css";
 import Sidebar from "../components/page";
-
-const API = "http://localhost:8080";
 
 const productColumns = [
   { key: "name", label: "Nome" },
@@ -57,21 +56,9 @@ export default function ProductsPage() {
     fetchEcommerces();
   }, []);
 
-  const authFetch = (url, options = {}) => {
-    return fetch(url, {
-      ...options,
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      }
-    });
-  };
-
-
   const fetchProducts = async () => {
     try {
-      const res = await authFetch(`${API}/product`, { method: "GET" });
+      const res = await authFetch("/product", { method: "GET" });
       if (!res.ok) return;
       const text = await res.text();
       setProducts(text ? JSON.parse(text) : []);
@@ -82,7 +69,7 @@ export default function ProductsPage() {
 
   const fetchEcommerces = async () => {
     try {
-      const res = await authFetch(`${API}/ecommerce`);
+      const res = await authFetch("/ecommerce");
       if (!res.ok) return;
       const text = await res.text();
       setEcommerces(text ? JSON.parse(text) : []);
@@ -145,8 +132,8 @@ export default function ProductsPage() {
 
     try {
       const url = editingProduct
-        ? `${API}/product/update?id=${editingProduct.id}`
-        : `${API}/product`;
+        ? `/product/update?id=${editingProduct.id}`
+        : "/product";
       const method = editingProduct ? "PUT" : "POST";
 
       const res = await authFetch(url, {
@@ -173,7 +160,7 @@ export default function ProductsPage() {
   const handleDelete = async (id) => {
     if (!confirm("Tem certeza que deseja excluir este produto?")) return;
     try {
-      const res = await authFetch(`${API}/product/delete?id=${id}`, { method: "DELETE" });
+      const res = await authFetch(`/product/delete?id=${id}`, { method: "DELETE" });
       if (res.ok) fetchProducts();
     } catch (err) {
       console.error("Erro ao deletar produto:", err);
@@ -186,7 +173,7 @@ export default function ProductsPage() {
     setError("");
 
     try {
-      const res = await authFetch(`${API}/produtos/importar-tiny`, {
+      const res = await authFetch("/produtos/importar-tiny", {
         method: "POST",
       });
 

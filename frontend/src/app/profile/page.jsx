@@ -1,20 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { authFetch, apiUrl } from "@/lib/api";
 import Sidebar from "../components/page";
 import "./profile.css";
-
-const API = "http://localhost:8080";
-
-const authFetch = (url, options = {}) =>
-  fetch(url, {
-    ...options,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
 
 const emptyForm = {
   name: "",
@@ -47,7 +36,7 @@ export default function ProfilePage() {
         setLoading(true);
         setError("");
 
-        const res = await authFetch(`${API}/auth/me`);
+        const res = await authFetch("/auth/me");
 
         if (!res.ok) {
           const msg = await res.text();
@@ -107,13 +96,13 @@ export default function ProfilePage() {
 
   const saveProfileData = async () => {
     console.log("[Olist/Tiny] Salvando perfil antes de conectar", {
-      endpoint: `${API}/auth/me`,
+      endpoint: apiUrl("/auth/me"),
       hasClientId: Boolean(form.clientId),
       hasNewClientSecret: Boolean(form.clientSecret),
       hasSavedClientSecret: hasClientSecret,
     });
 
-    const res = await authFetch(`${API}/auth/me`, {
+    const res = await authFetch("/auth/me", {
       method: "PUT",
       body: JSON.stringify(buildProfilePayload()),
     });

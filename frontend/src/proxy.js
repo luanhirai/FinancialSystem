@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_URL = process.env.BACKEND_URL || "http://localhost:8080";
 const publicRoutes = new Set(["/", "/login", "/register"]);
 
 async function isAuthenticated(request) {

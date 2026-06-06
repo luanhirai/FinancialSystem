@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { apiUrl } from "@/lib/api";
 
 export default function Sidebar() {
   const router = useRouter();
@@ -11,7 +12,7 @@ export default function Sidebar() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch("http://localhost:8080/auth/me", {
+        const res = await fetch(apiUrl("/auth/me"), {
           credentials: "include",
         });
 
@@ -43,7 +44,7 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:8080/auth/logout", {
+      await fetch(apiUrl("/auth/logout"), {
         method: "POST",
         credentials: "include",
       });

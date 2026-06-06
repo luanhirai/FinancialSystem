@@ -1,20 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { authFetch } from "@/lib/api";
 import Sidebar from "../components/page";
 import "./importacao-tiny.css";
-
-const API = "http://localhost:8080";
-
-const authFetch = (url, options = {}) =>
-  fetch(url, {
-    ...options,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
 
 const toInputDate = (date) => date.toISOString().slice(0, 10);
 
@@ -113,7 +102,7 @@ export default function ImportacaoTinyPage() {
     setSelectedOrder(null);
 
     try {
-      const res = await authFetch(`${API}/olist/pedidos?${buildPeriodParams()}`);
+      const res = await authFetch(`/olist/pedidos?${buildPeriodParams()}`);
 
       if (!res.ok) {
         const msg = await res.text();
@@ -139,7 +128,7 @@ export default function ImportacaoTinyPage() {
     setError("");
 
     try {
-      const res = await authFetch(`${API}/olist/pedidos/${orderId}`);
+      const res = await authFetch(`/olist/pedidos/${orderId}`);
 
       if (!res.ok) 
       {
@@ -163,7 +152,7 @@ export default function ImportacaoTinyPage() {
     setError("");
 
     try {
-      const res = await authFetch(`${API}/olist/pedidos/${orderId}/produtos/importar`, {
+      const res = await authFetch(`/olist/pedidos/${orderId}/produtos/importar`, {
         method: "POST",
       });
 
@@ -195,7 +184,7 @@ export default function ImportacaoTinyPage() {
     setError("");
 
     try {
-      const res = await authFetch(`${API}/olist/pedidos/produtos/importar?${buildPeriodParams()}`, {
+      const res = await authFetch(`/olist/pedidos/produtos/importar?${buildPeriodParams()}`, {
         method: "POST",
       });
 

@@ -1,19 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { authFetch } from "@/lib/api";
 import "./ecommerce.css";
 import Sidebar from "../components/page";
-
-const authFetch = (url, options = {}) => {
-  return fetch(url, {
-    ...options,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    }
-  });
-};
 
 export default function EcommercePage() {
   const [ecommerces, setEcommerces] = useState([]);
@@ -29,7 +19,7 @@ export default function EcommercePage() {
   useEffect(() => { fetchEcommerces(); }, []);
 
   const fetchEcommerces = async () => {
-    const res = await authFetch("http://localhost:8080/ecommerce");
+    const res = await authFetch("/ecommerce");
     const text = await res.text();
     const data = text ? JSON.parse(text) : [];
     setEcommerces(data);
@@ -55,8 +45,8 @@ export default function EcommercePage() {
 
   const handleSave = async () => {
     const url = editingEcommerce
-      ? `http://localhost:8080/ecommerce/editEcommerce?id=${editingEcommerce.id}`
-      : "http://localhost:8080/ecommerce";
+      ? `/ecommerce/editEcommerce?id=${editingEcommerce.id}`
+      : "/ecommerce";
     const method = editingEcommerce ? "PUT" : "POST";
 
     if (form.rate < 0 || form.fixed_rate < 0) { 
@@ -84,7 +74,7 @@ export default function EcommercePage() {
     if (!confirmDelete) 
       return;
 
-    const res = await authFetch(`http://localhost:8080/ecommerce/${id}`, { 
+    const res = await authFetch(`/ecommerce/${id}`, { 
       method: "DELETE" 
     });
 
