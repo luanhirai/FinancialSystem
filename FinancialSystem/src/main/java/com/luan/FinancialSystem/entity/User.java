@@ -36,6 +36,21 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String phone;
 
+    @Column
+    private String client_id;
+
+    @Column(length = 1024)
+    private String client_secret;
+
+    @Column(columnDefinition = "TEXT")
+    private String olist_access_token;
+
+    @Column(columnDefinition = "TEXT")
+    private String olist_refresh_token;
+
+    @Column
+    private Long olist_token_expires_at;
+
     @NotBlank
     @Column(nullable = false)
     private String password;
