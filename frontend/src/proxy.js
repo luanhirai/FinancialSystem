@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
-const API_URL = process.env.BACKEND_URL || "http://localhost:8080";
+const API_URL =
+  process.env.BACKEND_URL ||
+  "https://faqs-combo-went-teaching.trycloudflare.com";
 const publicRoutes = new Set(["/", "/login", "/register"]);
 
 async function isAuthenticated(request) {

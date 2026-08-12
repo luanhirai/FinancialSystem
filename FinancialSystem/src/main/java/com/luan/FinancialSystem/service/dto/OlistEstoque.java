@@ -5,8 +5,8 @@ public record OlistEstoque(
         Boolean sobEncomenda,
         Integer diasPreparacao,
         String localizacao,
-        Integer minimo,
-        Integer maximo,
-        Integer quantidade
+        Double minimo,
+        Double maximo,
+        Double quantidade
 ) {
 }

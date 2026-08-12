@@ -1,0 +1,13 @@
+{
+  "name": "meu-webhook",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "vercel:dev": "vercel dev",
+    "cadastro:dev": "node apps/cadastro-vendas/server.js",
+    "simular:venda": "node apps/simulador-venda/enviar-venda.js"
+  },
+  "dependencies": {
+    "vercel": "^58.4.4"
+  }
+}

@@ -173,7 +173,7 @@ export default function ProductsPage() {
     setError("");
 
     try {
-      const res = await authFetch("/produtos/importar-tiny", {
+      const res = await authFetch("/olist/produtos/importar", {
         method: "POST",
       });
 
@@ -183,10 +183,27 @@ export default function ProductsPage() {
         return;
       }
 
-      const text = await res.text();
-      const importedProducts = text ? JSON.parse(text) : [];
+      let status = await res.json();
+      setImportMessage(status.message || "Importacao iniciada.");
+
+      while (status.running) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const statusResponse = await authFetch("/olist/produtos/importar/status");
+        if (!statusResponse.ok) throw new Error("Nao foi possivel consultar o progresso.");
+        status = await statusResponse.json();
+        setImportMessage(status.total > 0
+          ? `${status.message} (${status.processed}/${status.total})`
+          : status.message);
+      }
+
+      if (status.error) {
+        setError(status.error);
+        setImportMessage("");
+        return;
+      }
+
       await Promise.all([fetchProducts(), fetchEcommerces()]);
-      setImportMessage(`${importedProducts.length} produtos importados do mock Tiny.`);
+      setImportMessage(status.message || "Produtos sincronizados com o Tiny.");
     } catch (err) {
       console.error("Erro ao importar produtos do Tiny:", err);
       setError("Erro ao conectar com o servidor.");
@@ -268,7 +285,7 @@ export default function ProductsPage() {
               onClick={handleImportTiny}
               disabled={importingTiny}
             >
-              {importingTiny ? "Importando..." : "Importar Tiny"}
+              {importingTiny ? "Importando produtos..." : "Importar produtos do Tiny"}
             </button>
             <button className="btn-primary" onClick={openCreate}>+ Novo Produto</button>
           </div>

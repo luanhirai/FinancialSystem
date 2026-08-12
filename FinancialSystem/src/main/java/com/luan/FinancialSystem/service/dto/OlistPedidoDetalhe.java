@@ -9,6 +9,11 @@ public record OlistPedidoDetalhe(
         List<OlistPedidoItem> itens,
         String data,
         String dataEnvio,
-        Integer situacao
+        Integer situacao,
+        Double valorTotalProdutos,
+        Double valorTotalPedido,
+        Double valorDesconto,
+        Double valorFrete,
+        Double valorOutrasDespesas
 ) {
 }

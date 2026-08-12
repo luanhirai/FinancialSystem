@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { authFetch } from "@/lib/api";
 import Sidebar from "../components/page";
 import "./importacao-tiny.css";
@@ -45,27 +45,61 @@ export default function ImportacaoTinyPage() {
   const [filters, setFilters] = useState({
     dataInicial: toInputDate(sevenDaysAgo),
     dataFinal: toInputDate(today),
+    ecommerceId: "",
   });
   const [orders, setOrders] = useState([]);
+  const [registeredEcommerces, setRegisteredEcommerces] = useState([]);
+  const [reportEcommerceId, setReportEcommerceId] = useState("");
   const [pagination, setPagination] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [importedProducts, setImportedProducts] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchRegisteredEcommerces = async () => {
+      try {
+        const response = await authFetch("/ecommerce");
+        if (!response.ok) throw new Error("Nao foi possivel carregar os ecommerces.");
+        setRegisteredEcommerces(await response.json());
+      } catch (err) {
+        console.error("Erro ao buscar ecommerces cadastrados:", err);
+        setError(err.message);
+      }
+    };
+
+    fetchRegisteredEcommerces();
+  }, []);
 
   const periodIsInvalid =
     filters.dataInicial &&
     filters.dataFinal &&
     filters.dataInicial > filters.dataFinal;
 
+  const ecommerceOptions = useMemo(() => {
+    const channels = new Map();
+    orders.forEach((order) => {
+      if (order.ecommerce?.id) channels.set(String(order.ecommerce.id), order.ecommerce.nome || `Canal ${order.ecommerce.id}`);
+    });
+    return Array.from(channels, ([id, name]) => ({ id, name }));
+  }, [orders]);
+
+  const filteredOrders = useMemo(() =>
+    filters.ecommerceId
+      ? orders.filter((order) => String(order.ecommerce?.id || "") === filters.ecommerceId)
+      : orders,
+  [orders, filters.ecommerceId]);
+
   const summary = useMemo(() => {
-    const totalValue = orders.reduce((total, order) => total + Number(order.valor || 0), 0);
-    const approvedOrders = orders.filter((order) => Number(order.situacao) === 1).length;
+    const totalValue = filteredOrders.reduce((total, order) => total + Number(order.valor || 0), 0);
+    const approvedOrders = filteredOrders.filter((order) => Number(order.situacao) === 1).length;
     const ecommerces = new Set(
-      orders.map((order) => order.ecommerce?.nome).filter(Boolean)
+      filteredOrders.map((order) => order.ecommerce?.nome).filter(Boolean)
     );
 
     return {
@@ -73,16 +107,33 @@ export default function ImportacaoTinyPage() {
       approvedOrders,
       ecommerces: ecommerces.size,
     };
-  }, [orders]);
+  }, [filteredOrders]);
 
   const updateFilter = (key, value) => {
     setFilters((current) => ({ ...current, [key]: value }));
   };
 
+  const closeOrderDetails = () => {
+    setIsDetailsOpen(false);
+    setSelectedOrder(null);
+  };
+
+  useEffect(() => {
+    if (!isDetailsOpen) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") closeOrderDetails();
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isDetailsOpen]);
+
   const buildPeriodParams = () =>
     new URLSearchParams({
       dataInicial: filters.dataInicial,
       dataFinal: filters.dataFinal,
+      ...(filters.ecommerceId ? { ecommerceId: filters.ecommerceId } : {}),
     }).toString();
 
   const searchOrders = async () => {
@@ -123,6 +174,8 @@ export default function ImportacaoTinyPage() {
   };
 
   const fetchOrderDetails = async (orderId) => {
+    setSelectedOrder(null);
+    setIsDetailsOpen(true);
     setLoadingDetails(true);
     setMessage("");
     setError("");
@@ -134,6 +187,7 @@ export default function ImportacaoTinyPage() {
       {
         const msg = await res.text();
         setError(msg || "Nao foi possivel carregar os detalhes do pedido.");
+        setIsDetailsOpen(false);
         return;
       }
 
@@ -174,7 +228,7 @@ export default function ImportacaoTinyPage() {
   };
 
   const importPeriodProducts = async () => {
-    if (orders.length === 0) {
+    if (filteredOrders.length === 0) {
       setError("Busque pedidos antes de importar o periodo.");
       return;
     }
@@ -205,6 +259,69 @@ export default function ImportacaoTinyPage() {
     }
   };
 
+  const escapeCsv = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+
+  const generateProfitReport = async () => {
+    if (!filters.dataInicial || !filters.dataFinal || periodIsInvalid) {
+      setError("Informe um periodo valido para gerar o relatorio.");
+      return;
+    }
+
+    if (!reportEcommerceId) {
+      setError("Selecione o ecommerce ao qual os produtos pertencem.");
+      return;
+    }
+
+    setGeneratingReport(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const reportParams = new URLSearchParams(buildPeriodParams());
+      reportParams.set("productEcommerceId", reportEcommerceId);
+      const startResponse = await authFetch(`/olist/relatorios/pedidos?${reportParams}`, { method: "POST" });
+      if (!startResponse.ok) {
+        setError((await startResponse.text()) || "Nao foi possivel iniciar o relatorio.");
+        return;
+      }
+
+      let report = await startResponse.json();
+      while (report.running) {
+        setMessage(report.total > 0 ? `${report.message} (${report.processed}/${report.total})` : report.message);
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        const statusResponse = await authFetch("/olist/relatorios/pedidos/status");
+        if (!statusResponse.ok) throw new Error("Nao foi possivel consultar o progresso do relatorio.");
+        report = await statusResponse.json();
+      }
+
+      if (report.error) {
+        setError(report.error);
+        setMessage("");
+        return;
+      }
+
+      const header = ["Pedido", "Data", "Ecommerce", "Unidades", "Produtos", "Venda bruta", "Descontos", "Custo produtos", "Taxa ecommerce", "Imposto", "Ganho liquido"];
+      const lines = (report.rows || []).map((row) => [
+        row.orderNumber || row.orderId, row.date, row.ecommerce, row.units, row.products,
+        row.grossRevenue, row.discount, row.productCost, row.marketplaceFee, row.tax, row.netProfit,
+      ].map(escapeCsv).join(";"));
+      const csv = `\uFEFF${header.map(escapeCsv).join(";")}\r\n${lines.join("\r\n")}`;
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `ganho-real-pedidos-${filters.dataInicial}-${filters.dataFinal}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage(`${report.rows?.length || 0} pedidos calculados. Relatorio Excel baixado.`);
+    } catch (err) {
+      console.error("Erro ao gerar relatorio:", err);
+      setError(err.message || "Erro ao gerar o relatorio.");
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
   return (
     <div className="dashboard-layout">
       <Sidebar />
@@ -216,14 +333,24 @@ export default function ImportacaoTinyPage() {
             <h1>Importacao de dados</h1>
             <p>Busque pedidos por periodo e importe os produtos vendidos para o sistema.</p>
           </div>
-          <button
-            className="btn-primary"
-            type="button"
-            onClick={importPeriodProducts}
-            disabled={importing || orders.length === 0}
-          >
-            {importing ? "Importando..." : "Importar periodo"}
-          </button>
+          <div className="header-actions">
+            <button
+              className="btn-secondary"
+              type="button"
+              onClick={generateProfitReport}
+              disabled={generatingReport || loadingOrders}
+            >
+              {generatingReport ? "Gerando relatorio..." : "Gerar relatorio Excel"}
+            </button>
+            <button
+              className="btn-primary"
+              type="button"
+              onClick={importPeriodProducts}
+              disabled={importing || filteredOrders.length === 0}
+            >
+              {importing ? "Importando..." : "Importar periodo"}
+            </button>
+          </div>
         </header>
 
         {message && <p className="success-message">{message}</p>}
@@ -247,6 +374,31 @@ export default function ImportacaoTinyPage() {
                 onChange={(event) => updateFilter("dataFinal", event.target.value)}
               />
             </div>
+            <div className="filter-group">
+              <label>Ecommerce</label>
+              <select
+                value={filters.ecommerceId}
+                onChange={(event) => updateFilter("ecommerceId", event.target.value)}
+                disabled={orders.length === 0}
+              >
+                <option value="">Todos os ecommerces</option>
+                {ecommerceOptions.map((ecommerce) => (
+                  <option key={ecommerce.id} value={ecommerce.id}>{ecommerce.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-group">
+              <label>Ecommerce dos produtos</label>
+              <select
+                value={reportEcommerceId}
+                onChange={(event) => setReportEcommerceId(event.target.value)}
+              >
+                <option value="">Selecione para o relatorio</option>
+                {registeredEcommerces.map((ecommerce) => (
+                  <option key={ecommerce.id} value={ecommerce.id}>{ecommerce.name}</option>
+                ))}
+              </select>
+            </div>
             <button
               className="btn-secondary tiny-search-button"
               type="button"
@@ -261,7 +413,7 @@ export default function ImportacaoTinyPage() {
         <section className="tiny-stats-grid">
           <article className="stat-card glass">
             <p className="stat-label">Pedidos encontrados</p>
-            <h3 className="stat-value">{orders.length}</h3>
+            <h3 className="stat-value">{filteredOrders.length}</h3>
             <span className="stat-change neutral">
               {pagination?.total ? `${pagination.total} no Tiny` : "Resultado atual"}
             </span>
@@ -304,7 +456,7 @@ export default function ImportacaoTinyPage() {
                 </tr>
               </thead>
               <tbody>
-                {!loadingOrders && orders.length === 0 && (
+                {!loadingOrders && filteredOrders.length === 0 && (
                   <tr>
                     <td colSpan="6" className="table-empty">
                       Nenhum pedido carregado para o periodo.
@@ -312,7 +464,7 @@ export default function ImportacaoTinyPage() {
                   </tr>
                 )}
 
-                {orders.map((order) => (
+                {filteredOrders.map((order) => (
                   <tr key={order.id}>
                     <td>
                       <strong>#{order.numeroPedido || order.id}</strong>
@@ -355,37 +507,6 @@ export default function ImportacaoTinyPage() {
           </div>
         </section>
 
-        {selectedOrder && (
-          <section className="content-section glass animate-fade-in">
-            <div className="section-header">
-              <div>
-                <h2>Itens do pedido #{selectedOrder.numeroPedido || selectedOrder.id}</h2>
-                <p>{selectedOrder.itens?.length || 0} produtos retornados pelo Tiny.</p>
-              </div>
-              <button
-                className="btn-secondary"
-                type="button"
-                onClick={() => importOrderProducts(selectedOrder.id)}
-                disabled={importing}
-              >
-                Importar itens
-              </button>
-            </div>
-
-            <div className="tiny-detail-grid">
-              {(selectedOrder.itens || []).map((item) => (
-                <article key={`${selectedOrder.id}-${item.produto?.id}`} className="tiny-product-item">
-                  <div>
-                    <strong>{item.produto?.descricao || "Produto sem descricao"}</strong>
-                    <span>SKU {item.produto?.sku || "-"} - ID {item.produto?.id || "-"}</span>
-                  </div>
-                  <p>{item.quantidade || 0} x {formatCurrency(item.valorUnitario)}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
-
         {importedProducts.length > 0 && (
           <section className="content-section glass animate-fade-in">
             <div className="section-header">
@@ -407,6 +528,71 @@ export default function ImportacaoTinyPage() {
           </section>
         )}
       </main>
+
+      {isDetailsOpen && (
+        <div className="tiny-modal-overlay" role="presentation" onClick={closeOrderDetails}>
+          <section
+            className="tiny-order-modal glass"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="order-details-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {loadingDetails || !selectedOrder ? (
+              <div className="tiny-modal-loading">Carregando detalhes do pedido...</div>
+            ) : (
+              <>
+                <div className="tiny-modal-header">
+                  <div>
+                    <span className="eyebrow">Detalhes do pedido</span>
+                    <h2 id="order-details-title">
+                      Pedido #{selectedOrder.numeroPedido || selectedOrder.id}
+                    </h2>
+                    <p>{selectedOrder.itens?.length || 0} produtos retornados pelo Tiny.</p>
+                  </div>
+                  <button
+                    className="tiny-modal-close"
+                    type="button"
+                    aria-label="Fechar detalhes"
+                    onClick={closeOrderDetails}
+                  >
+                    &times;
+                  </button>
+                </div>
+
+                <div className="tiny-detail-grid">
+                  {(selectedOrder.itens || []).map((item, index) => (
+                    <article
+                      key={`${selectedOrder.id}-${item.produto?.id || index}`}
+                      className="tiny-product-item"
+                    >
+                      <div>
+                        <strong>{item.produto?.descricao || "Produto sem descricao"}</strong>
+                        <span>SKU {item.produto?.sku || "-"} - ID {item.produto?.id || "-"}</span>
+                      </div>
+                      <p>{item.quantidade || 0} x {formatCurrency(item.valorUnitario)}</p>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="tiny-modal-actions">
+                  <button className="btn-secondary" type="button" onClick={closeOrderDetails}>
+                    Fechar
+                  </button>
+                  <button
+                    className="btn-primary"
+                    type="button"
+                    onClick={() => importOrderProducts(selectedOrder.id)}
+                    disabled={importing}
+                  >
+                    {importing ? "Importando..." : "Importar itens"}
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   );
 }

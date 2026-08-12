@@ -1,0 +1,19 @@
+# Environment and local credentials
+.env
+.env.*
+!.env.example
+**/token_refresh.json
+**/*credentials*.json
+
+# Dependencies and build output
+**/node_modules/
+**/.next/
+**/target/
+**/.vercel/
+
+# Runtime logs and generated reports
+cloudflared*.log
+*.log
+relatorio_*.html
+relatorio_*.pdf
+relatorio_*_cache.json

@@ -48,6 +48,28 @@ public class OlistController {
         return olistImportService.obterProduto(idProduto);
     }
 
+    @GetMapping("/produtos")
+    public List<com.luan.FinancialSystem.service.dto.OlistProdutoResumo> listarProdutos() {
+        return olistImportService.listarCatalogoProdutos();
+    }
+
+    @PostMapping("/produtos/importar")
+    public OlistImportService.ImportStatus importarTodosProdutos() {
+        return olistImportService.iniciarImportacaoTodosProdutos();
+    }
+
+    @GetMapping("/produtos/importar/status")
+    public OlistImportService.ImportStatus statusImportacaoTodosProdutos() {
+        return olistImportService.obterStatusImportacao();
+    }
+
+    @PostMapping("/estoque/webhook")
+    public ResponseEntity<Void> receberWebhookEstoque(@org.springframework.web.bind.annotation.RequestBody EstoqueWebhookRequest request) {
+        olistImportService.aplicarWebhookEstoque(
+                request.clientId(), request.idProduto(), request.saldo(), request.tipoEstoque());
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/pedidos/{idPedido}/produtos/importar")
     public List<Product> importarProdutosDoPedido(@PathVariable Long idPedido) {
         return olistImportService.importarProdutosDoPedido(idPedido);
@@ -55,8 +77,9 @@ public class OlistController {
 
     @PostMapping("/pedidos/produtos/importar")
     public List<Product> importarProdutosPorPeriodo(@RequestParam LocalDate dataInicial,
-                                                    @RequestParam LocalDate dataFinal) {
-        return olistImportService.importarProdutosPorPeriodo(dataInicial, dataFinal);
+                                                    @RequestParam LocalDate dataFinal,
+                                                    @RequestParam(required = false) Long ecommerceId) {
+        return olistImportService.importarProdutosPorPeriodo(dataInicial, dataFinal, ecommerceId);
     }
 
     @ExceptionHandler(HttpClientErrorException.TooManyRequests.class)
@@ -70,4 +93,6 @@ public class OlistController {
     public ResponseEntity<String> handleIllegalState(IllegalStateException exception) {
         return ResponseEntity.badRequest().body(exception.getMessage());
     }
+
+    public record EstoqueWebhookRequest(String clientId, Long idProduto, Double saldo, String tipoEstoque) {}
 }

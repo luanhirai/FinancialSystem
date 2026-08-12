@@ -5,6 +5,7 @@ import com.luan.FinancialSystem.entity.Product;
 import com.luan.FinancialSystem.entity.User;
 import com.luan.FinancialSystem.repository.EcommerceRepository;
 import com.luan.FinancialSystem.repository.ProductRepository;
+import com.luan.FinancialSystem.repository.UserRepository;
 import com.luan.FinancialSystem.service.dto.OlistEcommerceInfo;
 import com.luan.FinancialSystem.service.dto.OlistPedidoDetalhe;
 import com.luan.FinancialSystem.service.dto.OlistPedidoItem;
@@ -20,6 +21,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class OlistImportService {
@@ -27,15 +30,19 @@ public class OlistImportService {
     private final ProductRepository productRepository;
     private final EcommerceRepository ecommerceRepository;
     private final AuthenticatedUserService authenticatedUserService;
+    private final UserRepository userRepository;
+    private final Map<Long, ImportStatus> importJobs = new ConcurrentHashMap<>();
 
     public OlistImportService(OlistClient olistClient,
                               ProductRepository productRepository,
                               EcommerceRepository ecommerceRepository,
-                              AuthenticatedUserService authenticatedUserService) {
+                              AuthenticatedUserService authenticatedUserService,
+                              UserRepository userRepository) {
         this.olistClient = olistClient;
         this.productRepository = productRepository;
         this.ecommerceRepository = ecommerceRepository;
         this.authenticatedUserService = authenticatedUserService;
+        this.userRepository = userRepository;
     }
 
     public OlistPedidosResponse listarPedidos(LocalDate dataInicial, LocalDate dataFinal) {
@@ -48,6 +55,115 @@ public class OlistImportService {
 
     public OlistProdutoDetalhe obterProduto(Long idProduto) {
         return olistClient.obterProduto(idProduto);
+    }
+
+    public List<OlistProdutoResumo> listarCatalogoProdutos() {
+        Long userId = authenticatedUserService.getLoggedUser().getId();
+        return olistClient.listarTodosProdutos(userId);
+    }
+
+    public ImportStatus iniciarImportacaoTodosProdutos() {
+        User user = authenticatedUserService.getLoggedUser();
+        ImportStatus current = importJobs.get(user.getId());
+        if (current != null && current.running) return current;
+
+        ImportStatus status = new ImportStatus();
+        status.running = true;
+        status.message = "Preparando importacao dos produtos...";
+        importJobs.put(user.getId(), status);
+        CompletableFuture.runAsync(() -> executarImportacaoTodosProdutos(user.getId(), status));
+        return status;
+    }
+
+    public ImportStatus obterStatusImportacao() {
+        Long userId = authenticatedUserService.getLoggedUser().getId();
+        return importJobs.getOrDefault(userId, ImportStatus.idle());
+    }
+
+    private void executarImportacaoTodosProdutos(Long userId, ImportStatus status) {
+        try {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalStateException("Usuario da importacao nao encontrado."));
+            Ecommerce ecommerce = buscarOuCriarEcommerce(null, user);
+            List<OlistProdutoResumo> produtos = olistClient.listarTodosProdutos(userId);
+            status.total = produtos.size();
+            status.message = "Importando cadastro e estoque dos produtos...";
+
+            for (OlistProdutoResumo produtoOlist : produtos) {
+                if (produtoOlist == null || produtoOlist.id() == null) continue;
+                Product product = salvarProdutoResumo(produtoOlist, ecommerce, user);
+
+                var estoque = olistClient.obterEstoque(produtoOlist.id(), userId);
+                Double quantidade = estoque == null ? null
+                        : estoque.disponivel() != null ? estoque.disponivel() : estoque.saldo();
+                product.setQuantity(toInteger(quantidade));
+                productRepository.save(product);
+                status.processed++;
+                status.message = "Produto " + status.processed + " de " + status.total;
+            }
+
+            status.message = status.processed + " produtos importados e sincronizados.";
+        } catch (Exception exception) {
+            status.error = exception.getMessage() != null ? exception.getMessage() : "Erro inesperado na importacao.";
+        } finally {
+            status.running = false;
+        }
+    }
+
+    @Transactional
+    public void aplicarWebhookEstoque(String clientId, Long idProduto, Double saldo, String tipoEstoque) {
+        if (clientId == null || clientId.isBlank() || idProduto == null || saldo == null) {
+            throw new IllegalArgumentException("Webhook de estoque sem clientId, idProduto ou saldo.");
+        }
+        User user = userRepository.findByClientId(clientId.trim())
+                .orElseThrow(() -> new IllegalStateException("Usuario do webhook de estoque nao encontrado."));
+        Product product = productRepository.findByIdOlistAndUserId(String.valueOf(idProduto), user.getId())
+                .orElseThrow(() -> new IllegalStateException("Produto do webhook ainda nao foi importado."));
+
+        // Algumas contas nao enviam tipoEstoque. Nesses casos, consulta a API
+        // para nao confundir saldo fisico com o total realmente disponivel.
+        Double quantidadeDisponivel = saldo;
+        if (!"D".equalsIgnoreCase(tipoEstoque)) {
+            var estoqueAtual = olistClient.obterEstoque(idProduto, user.getId());
+            if (estoqueAtual != null) {
+                quantidadeDisponivel = estoqueAtual.disponivel() != null
+                        ? estoqueAtual.disponivel()
+                        : estoqueAtual.saldo();
+            }
+        }
+
+        product.setQuantity(toInteger(quantidadeDisponivel));
+        productRepository.save(product);
+    }
+
+    private Product salvarProdutoResumo(OlistProdutoResumo produtoOlist, Ecommerce ecommerce, User user) {
+        String idOlist = String.valueOf(produtoOlist.id());
+        Product product = productRepository.findByIdOlistAndUserId(idOlist, user.getId())
+                .orElseGet(Product::new);
+        product.setId_olist(idOlist);
+        product.setName(produtoOlist.descricao());
+        product.setOriginal_price(toFloat(produtoOlist.precos() != null ? produtoOlist.precos().preco() : null));
+        product.setCost(toFloat(produtoOlist.precos() != null ? produtoOlist.precos().precoCusto() : null));
+        product.setEcommerce(ecommerce);
+        return productRepository.save(product);
+    }
+
+    private Integer toInteger(Double value) {
+        return value != null ? (int) Math.round(value) : null;
+    }
+
+    public static class ImportStatus {
+        public volatile boolean running;
+        public volatile int total;
+        public volatile int processed;
+        public volatile String message;
+        public volatile String error;
+
+        static ImportStatus idle() {
+            ImportStatus status = new ImportStatus();
+            status.message = "Nenhuma importacao iniciada.";
+            return status;
+        }
     }
 
     public List<OlistProdutoDetalhe> listarProdutosDoPedido(Long idPedido) {
@@ -76,7 +192,7 @@ public class OlistImportService {
     }
 
     @Transactional
-    public List<Product> importarProdutosPorPeriodo(LocalDate dataInicial, LocalDate dataFinal) {
+    public List<Product> importarProdutosPorPeriodo(LocalDate dataInicial, LocalDate dataFinal, Long ecommerceId) {
         OlistPedidosResponse pedidos = olistClient.listarPedidos(dataInicial, dataFinal);
         Map<String, Product> produtosImportados = new LinkedHashMap<>();
         Map<Long, OlistProdutoDetalhe> produtosTinyCache = new LinkedHashMap<>();
@@ -89,6 +205,8 @@ public class OlistImportService {
 
         pedidos.itens().stream()
                 .filter(Objects::nonNull)
+                .filter(pedido -> ecommerceId == null
+                        || pedido.ecommerce() != null && ecommerceId.equals(pedido.ecommerce().id()))
                 .map(pedido -> pedido.id())
                 .filter(Objects::nonNull)
                 .map(olistClient::obterPedido)
@@ -143,7 +261,7 @@ public class OlistImportService {
         product.setName(produtoOlist.descricao());
         product.setOriginal_price(toFloat(produtoOlist.precos() != null ? produtoOlist.precos().preco() : null));
         product.setCost(toFloat(produtoOlist.precos() != null ? produtoOlist.precos().precoCusto() : null));
-        product.setQuantity(produtoOlist.estoque() != null ? produtoOlist.estoque().quantidade() : null);
+        product.setQuantity(toInteger(produtoOlist.estoque() != null ? produtoOlist.estoque().quantidade() : null));
         product.setEcommerce(ecommerce);
 
         return productRepository.save(product);

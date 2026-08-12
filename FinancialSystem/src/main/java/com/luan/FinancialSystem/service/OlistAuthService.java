@@ -135,6 +135,26 @@ public class OlistAuthService {
         return cryptoService.decrypt(user.getOlist_access_token());
     }
 
+    @Transactional
+    public String getValidAccessTokenForUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalStateException("Usuario da importacao nao encontrado."));
+        ensureTokenConfigured(user);
+
+        if (isTokenExpired(user)) {
+            refreshToken(user);
+        }
+
+        return cryptoService.decrypt(user.getOlist_access_token());
+    }
+
+    @Transactional
+    public void refreshUserToken(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalStateException("Usuario da importacao nao encontrado."));
+        refreshToken(user);
+    }
+
     public TokenStatus getLoggedUserTokenStatus() {
         return getTokenStatus(getFreshLoggedUser());
     }
