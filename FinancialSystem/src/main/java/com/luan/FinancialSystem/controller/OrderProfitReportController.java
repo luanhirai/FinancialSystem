@@ -21,9 +21,8 @@ public class OrderProfitReportController {
     @PostMapping
     public OrderProfitReportService.ReportStatus start(@RequestParam LocalDate dataInicial,
                                                        @RequestParam LocalDate dataFinal,
-                                                       @RequestParam(required = false) Long ecommerceId,
                                                        @RequestParam Long productEcommerceId) {
-        return service.start(dataInicial, dataFinal, ecommerceId, productEcommerceId);
+        return service.start(dataInicial, dataFinal, productEcommerceId);
     }
 
     @GetMapping("/status")

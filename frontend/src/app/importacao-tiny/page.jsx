@@ -45,7 +45,6 @@ export default function ImportacaoTinyPage() {
   const [filters, setFilters] = useState({
     dataInicial: toInputDate(sevenDaysAgo),
     dataFinal: toInputDate(today),
-    ecommerceId: "",
   });
   const [orders, setOrders] = useState([]);
   const [registeredEcommerces, setRegisteredEcommerces] = useState([]);
@@ -81,25 +80,11 @@ export default function ImportacaoTinyPage() {
     filters.dataFinal &&
     filters.dataInicial > filters.dataFinal;
 
-  const ecommerceOptions = useMemo(() => {
-    const channels = new Map();
-    orders.forEach((order) => {
-      if (order.ecommerce?.id) channels.set(String(order.ecommerce.id), order.ecommerce.nome || `Canal ${order.ecommerce.id}`);
-    });
-    return Array.from(channels, ([id, name]) => ({ id, name }));
-  }, [orders]);
-
-  const filteredOrders = useMemo(() =>
-    filters.ecommerceId
-      ? orders.filter((order) => String(order.ecommerce?.id || "") === filters.ecommerceId)
-      : orders,
-  [orders, filters.ecommerceId]);
-
   const summary = useMemo(() => {
-    const totalValue = filteredOrders.reduce((total, order) => total + Number(order.valor || 0), 0);
-    const approvedOrders = filteredOrders.filter((order) => Number(order.situacao) === 1).length;
+    const totalValue = orders.reduce((total, order) => total + Number(order.valor || 0), 0);
+    const approvedOrders = orders.filter((order) => Number(order.situacao) === 1).length;
     const ecommerces = new Set(
-      filteredOrders.map((order) => order.ecommerce?.nome).filter(Boolean)
+      orders.map((order) => order.ecommerce?.nome).filter(Boolean)
     );
 
     return {
@@ -107,7 +92,7 @@ export default function ImportacaoTinyPage() {
       approvedOrders,
       ecommerces: ecommerces.size,
     };
-  }, [filteredOrders]);
+  }, [orders]);
 
   const updateFilter = (key, value) => {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -133,7 +118,6 @@ export default function ImportacaoTinyPage() {
     new URLSearchParams({
       dataInicial: filters.dataInicial,
       dataFinal: filters.dataFinal,
-      ...(filters.ecommerceId ? { ecommerceId: filters.ecommerceId } : {}),
     }).toString();
 
   const searchOrders = async () => {
@@ -228,7 +212,7 @@ export default function ImportacaoTinyPage() {
   };
 
   const importPeriodProducts = async () => {
-    if (filteredOrders.length === 0) {
+    if (orders.length === 0) {
       setError("Busque pedidos antes de importar o periodo.");
       return;
     }
@@ -260,6 +244,10 @@ export default function ImportacaoTinyPage() {
   };
 
   const escapeCsv = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+  const excelNumber = (value) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(2).replace(".", ",") : "0,00";
+  };
 
   const generateProfitReport = async () => {
     if (!filters.dataInicial || !filters.dataFinal || periodIsInvalid) {
@@ -300,11 +288,17 @@ export default function ImportacaoTinyPage() {
         return;
       }
 
-      const header = ["Pedido", "Data", "Ecommerce", "Unidades", "Produtos", "Venda bruta", "Descontos", "Custo produtos", "Taxa ecommerce", "Imposto", "Ganho liquido"];
-      const lines = (report.rows || []).map((row) => [
-        row.orderNumber || row.orderId, row.date, row.ecommerce, row.units, row.products,
-        row.grossRevenue, row.discount, row.productCost, row.marketplaceFee, row.tax, row.netProfit,
-      ].map(escapeCsv).join(";"));
+      const header = ["Pedido", "Data", "Ecommerce", "Unidades", "Produtos", "Venda bruta", "Descontos", "Custo produtos", "Taxa ecommerce (%)", "Taxa fixa ecommerce (por unidade)", "Imposto (%)", "Ganho liquido"];
+      const lines = (report.rows || []).map((row, index) => {
+        const excelRow = index + 2;
+        return [
+          row.orderNumber || row.orderId, row.date, row.ecommerce, row.units, row.products,
+          excelNumber(row.grossRevenue), excelNumber(row.discount), excelNumber(row.productCost),
+          excelNumber(row.marketplacePercentageFee), excelNumber(row.marketplaceFixedFee),
+          excelNumber(row.tax),
+          `=F${excelRow}-G${excelRow}-H${excelRow}-I${excelRow}-J${excelRow}-K${excelRow}`,
+        ].map(escapeCsv).join(";");
+      });
       const csv = `\uFEFF${header.map(escapeCsv).join(";")}\r\n${lines.join("\r\n")}`;
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
@@ -346,7 +340,7 @@ export default function ImportacaoTinyPage() {
               className="btn-primary"
               type="button"
               onClick={importPeriodProducts}
-              disabled={importing || filteredOrders.length === 0}
+              disabled={importing || orders.length === 0}
             >
               {importing ? "Importando..." : "Importar periodo"}
             </button>
@@ -375,25 +369,12 @@ export default function ImportacaoTinyPage() {
               />
             </div>
             <div className="filter-group">
-              <label>Ecommerce</label>
-              <select
-                value={filters.ecommerceId}
-                onChange={(event) => updateFilter("ecommerceId", event.target.value)}
-                disabled={orders.length === 0}
-              >
-                <option value="">Todos os ecommerces</option>
-                {ecommerceOptions.map((ecommerce) => (
-                  <option key={ecommerce.id} value={ecommerce.id}>{ecommerce.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-group">
-              <label>Ecommerce dos produtos</label>
+              <label>Ecommerce do relatorio</label>
               <select
                 value={reportEcommerceId}
                 onChange={(event) => setReportEcommerceId(event.target.value)}
               >
-                <option value="">Selecione para o relatorio</option>
+                <option value="">Selecione o ecommerce</option>
                 {registeredEcommerces.map((ecommerce) => (
                   <option key={ecommerce.id} value={ecommerce.id}>{ecommerce.name}</option>
                 ))}
@@ -413,7 +394,7 @@ export default function ImportacaoTinyPage() {
         <section className="tiny-stats-grid">
           <article className="stat-card glass">
             <p className="stat-label">Pedidos encontrados</p>
-            <h3 className="stat-value">{filteredOrders.length}</h3>
+            <h3 className="stat-value">{orders.length}</h3>
             <span className="stat-change neutral">
               {pagination?.total ? `${pagination.total} no Tiny` : "Resultado atual"}
             </span>
@@ -456,7 +437,7 @@ export default function ImportacaoTinyPage() {
                 </tr>
               </thead>
               <tbody>
-                {!loadingOrders && filteredOrders.length === 0 && (
+                {!loadingOrders && orders.length === 0 && (
                   <tr>
                     <td colSpan="6" className="table-empty">
                       Nenhum pedido carregado para o periodo.
@@ -464,7 +445,7 @@ export default function ImportacaoTinyPage() {
                   </tr>
                 )}
 
-                {filteredOrders.map((order) => (
+                {orders.map((order) => (
                   <tr key={order.id}>
                     <td>
                       <strong>#{order.numeroPedido || order.id}</strong>

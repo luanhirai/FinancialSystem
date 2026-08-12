@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class OrderProfitReportService {
-    private static final BigDecimal DEFAULT_TAX_RATE = new BigDecimal("8.00");
     private static final BigDecimal DEFAULT_COST_PERCENTAGE = new BigDecimal("55.00");
 
     private final OlistClient olistClient;
@@ -49,7 +49,7 @@ public class OrderProfitReportService {
         this.policySettingRepository = policySettingRepository;
     }
 
-    public ReportStatus start(LocalDate startDate, LocalDate endDate, Long ecommerceId, Long productEcommerceId) {
+    public ReportStatus start(LocalDate startDate, LocalDate endDate, Long productEcommerceId) {
         if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("Informe um periodo valido.");
         }
@@ -60,6 +60,9 @@ public class OrderProfitReportService {
         Ecommerce productEcommerce = ecommerceRepository.findById(productEcommerceId)
                 .filter(item -> item.getUser().getId().equals(authenticated.getId()))
                 .orElseThrow(() -> new IllegalArgumentException("Ecommerce dos produtos nao encontrado."));
+        if (productEcommerce.getRate() == null || productEcommerce.getFixed_rate() == null) {
+            throw new IllegalArgumentException("Cadastre as taxas percentual e fixa do ecommerce antes de gerar o relatorio.");
+        }
         ReportStatus current = jobs.get(authenticated.getId());
         if (current != null && current.running) return current;
 
@@ -69,7 +72,7 @@ public class OrderProfitReportService {
         status.startDate = startDate.toString();
         status.endDate = endDate.toString();
         jobs.put(authenticated.getId(), status);
-        CompletableFuture.runAsync(() -> generate(authenticated.getId(), startDate, endDate, ecommerceId,
+        CompletableFuture.runAsync(() -> generate(authenticated.getId(), startDate, endDate,
                 productEcommerce.getId(), status));
         return status;
     }
@@ -79,7 +82,7 @@ public class OrderProfitReportService {
         return jobs.getOrDefault(userId, ReportStatus.idle());
     }
 
-    private void generate(Long userId, LocalDate startDate, LocalDate endDate, Long ecommerceId,
+    private void generate(Long userId, LocalDate startDate, LocalDate endDate,
                           Long productEcommerceId, ReportStatus status) {
         try {
             User user = userRepository.findById(userId)
@@ -87,10 +90,12 @@ public class OrderProfitReportService {
             Ecommerce productEcommerce = ecommerceRepository.findById(productEcommerceId)
                     .filter(item -> item.getUser().getId().equals(userId))
                     .orElseThrow(() -> new IllegalStateException("Ecommerce dos produtos nao encontrado."));
-            BigDecimal taxRate = getOrCreateTaxRate(user);
+            BigDecimal taxRate = getTaxRate(user);
             List<OlistPedidoResumo> summaries = olistClient.listarPedidos(userId, startDate, endDate).itens();
+            String selectedEcommerceName = normalizeName(productEcommerce.getName());
             List<OlistPedidoResumo> selected = summaries == null ? List.of() : summaries.stream()
-                    .filter(order -> ecommerceId == null || order.ecommerce() != null && ecommerceId.equals(order.ecommerce().id()))
+                    .filter(order -> order.ecommerce() != null
+                            && normalizeName(order.ecommerce().nome()).equals(selectedEcommerceName))
                     .toList();
             status.total = selected.size();
             status.message = "Calculando ganho real pedido a pedido...";
@@ -133,28 +138,13 @@ public class OrderProfitReportService {
 
         BigDecimal discount = decimal(order.valorDesconto());
         BigDecimal marketplaceRate = gross.multiply(decimal(ecommerce.getRate())).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        BigDecimal marketplaceFixed = decimal(ecommerce.getFixed_rate());
+        BigDecimal marketplaceFixed = decimal(ecommerce.getFixed_rate()).multiply(BigDecimal.valueOf(units));
         BigDecimal tax = gross.multiply(taxRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         BigDecimal net = gross.subtract(discount).subtract(productCosts).subtract(marketplaceRate).subtract(marketplaceFixed).subtract(tax);
 
         return new OrderProfitRow(order.id(), order.numeroPedido(), order.data(), ecommerce.getName(), units,
                 String.join(" | ", productNames), money(gross), money(discount), money(productCosts),
-                money(marketplaceRate.add(marketplaceFixed)), money(tax), money(net));
-    }
-
-    private Ecommerce getOrCreateEcommerce(OlistPedidoDetalhe order, User user) {
-        String name = order.ecommerce() != null && order.ecommerce().nome() != null && !order.ecommerce().nome().isBlank()
-                ? order.ecommerce().nome() : "Tiny / Sem canal";
-        return ecommerceRepository.findByUserId(user.getId()).stream()
-                .filter(item -> item.getName().equalsIgnoreCase(name)).findFirst()
-                .orElseGet(() -> {
-                    Ecommerce ecommerce = new Ecommerce();
-                    ecommerce.setName(name);
-                    ecommerce.setRate(fictionalMarketplaceRate(name));
-                    ecommerce.setFixed_rate(2F);
-                    ecommerce.setUser(user);
-                    return ecommerceRepository.save(ecommerce);
-                });
+                money(marketplaceRate), money(marketplaceFixed), money(tax), money(net));
     }
 
     private Product getOrCreateProduct(OlistPedidoItem item, Ecommerce ecommerce, User user, BigDecimal unitPrice) {
@@ -171,38 +161,37 @@ public class OrderProfitReportService {
         return productRepository.save(product);
     }
 
-    private BigDecimal getOrCreateTaxRate(User user) {
+    private BigDecimal getTaxRate(User user) {
         PolicySetting setting = policySettingRepository.findByUserId(user.getId()).stream().findFirst()
-                .orElseGet(() -> {
-                    PolicySetting created = new PolicySetting();
-                    created.setRate(DEFAULT_TAX_RATE.floatValue());
-                    created.setUser(user);
-                    return policySettingRepository.save(created);
-                });
+                .orElseThrow(() -> new IllegalStateException(
+                        "Cadastre o imposto em Configuracao de Regras antes de gerar o relatorio."));
+        if (setting.getRate() == null) {
+            throw new IllegalStateException("A taxa de imposto cadastrada e invalida.");
+        }
         return decimal(setting.getRate());
-    }
-
-    private Float fictionalMarketplaceRate(String name) {
-        String normalized = name.toLowerCase();
-        if (normalized.contains("fulfillment")) return 16F;
-        if (normalized.contains("mercado livre")) return 14F;
-        if (normalized.contains("shopee")) return 14F;
-        if (normalized.contains("amazon")) return 15F;
-        if (normalized.contains("tiktok")) return 12F;
-        return 10F;
     }
 
     private ReportSummary summarize(List<OrderProfitRow> rows) {
         return new ReportSummary(rows.size(),
                 money(rows.stream().map(OrderProfitRow::grossRevenue).reduce(BigDecimal.ZERO, BigDecimal::add)),
                 money(rows.stream().map(OrderProfitRow::productCost).reduce(BigDecimal.ZERO, BigDecimal::add)),
-                money(rows.stream().map(OrderProfitRow::marketplaceFee).reduce(BigDecimal.ZERO, BigDecimal::add)),
+                money(rows.stream()
+                        .map(row -> row.marketplacePercentageFee().add(row.marketplaceFixedFee()))
+                        .reduce(BigDecimal.ZERO, BigDecimal::add)),
                 money(rows.stream().map(OrderProfitRow::tax).reduce(BigDecimal.ZERO, BigDecimal::add)),
                 money(rows.stream().map(OrderProfitRow::netProfit).reduce(BigDecimal.ZERO, BigDecimal::add)));
     }
 
     private BigDecimal decimal(Number value) { return value == null ? BigDecimal.ZERO : BigDecimal.valueOf(value.doubleValue()); }
     private BigDecimal money(BigDecimal value) { return value.setScale(2, RoundingMode.HALF_UP); }
+    private String normalizeName(String value) {
+        if (value == null) return "";
+        return Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .trim()
+                .replaceAll("\\s+", " ")
+                .toLowerCase();
+    }
 
     public static class ReportStatus {
         public volatile boolean running;
@@ -219,8 +208,8 @@ public class OrderProfitReportService {
 
     public record OrderProfitRow(Long orderId, Long orderNumber, String date, String ecommerce, int units,
                                  String products, BigDecimal grossRevenue, BigDecimal discount,
-                                 BigDecimal productCost, BigDecimal marketplaceFee, BigDecimal tax,
-                                 BigDecimal netProfit) {}
+                                 BigDecimal productCost, BigDecimal marketplacePercentageFee,
+                                 BigDecimal marketplaceFixedFee, BigDecimal tax, BigDecimal netProfit) {}
     public record ReportSummary(int orders, BigDecimal grossRevenue, BigDecimal productCost,
                                 BigDecimal marketplaceFee, BigDecimal tax, BigDecimal netProfit) {}
 }
