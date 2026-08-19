@@ -9,7 +9,7 @@ const TINY_CLIENT_ID =
 const TINY_REDIRECT_URI =
   process.env.TINY_REDIRECT_URI || "http://webhook.casalamavievendas.com.br/";
 const BACKEND_URL =
-  process.env.BACKEND_URL || "https://faqs-combo-went-teaching.trycloudflare.com";
+  process.env.BACKEND_URL || "https://bradford-nontraditionary-danna.ngrok-free.dev";
 
 const TINY_AUTH_URL =
   process.env.TINY_AUTH_URL ||
@@ -142,6 +142,7 @@ async function enviarCodeParaBackend(callback) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "1",
     },
     body: JSON.stringify({
       code: callback.code,
@@ -181,7 +182,10 @@ async function enviarEstoqueParaBackend(payload) {
   const backendEndpoint = `${BACKEND_URL}/olist/estoque/webhook`;
   const response = await fetch(backendEndpoint, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "1",
+    },
     body: JSON.stringify({
       clientId: TINY_CLIENT_ID,
       idProduto: dados.idProduto,

@@ -1,6 +1,6 @@
 const BACKEND_URL =
   process.env.BACKEND_URL ||
-  "https://faqs-combo-went-teaching.trycloudflare.com";
+  "https://bradford-nontraditionary-danna.ngrok-free.dev";
 
 const hopByHopHeaders = new Set([
   "connection",
@@ -25,6 +25,7 @@ async function handler(request, context) {
   for (const header of hopByHopHeaders) {
     headers.delete(header);
   }
+  headers.set("ngrok-skip-browser-warning", "1");
 
   const init = {
     method: request.method,
