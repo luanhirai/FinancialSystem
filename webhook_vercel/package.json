@@ -3,11 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "vercel:dev": "vercel dev",
-    "cadastro:dev": "node apps/cadastro-vendas/server.js",
-    "simular:venda": "node apps/simulador-venda/enviar-venda.js"
+    "vercel:dev": "vercel dev"
   },
-  "dependencies": {
+  "devDependencies": {
     "vercel": "^58.4.4"
   }
 }
