@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -45,8 +46,48 @@ public class OlistImportService {
         this.userRepository = userRepository;
     }
 
+    @Transactional
     public OlistPedidosResponse listarPedidos(LocalDate dataInicial, LocalDate dataFinal) {
-        return olistClient.listarPedidos(dataInicial, dataFinal);
+        OlistPedidosResponse response = olistClient.listarPedidos(dataInicial, dataFinal);
+        armazenarEcommercesDosPedidos(response);
+        return response;
+    }
+
+    private void armazenarEcommercesDosPedidos(OlistPedidosResponse response) {
+        if (response == null || response.itens() == null || response.itens().isEmpty()) {
+            return;
+        }
+
+        User user = authenticatedUserService.getLoggedUser();
+        Map<String, Ecommerce> cadastradosPorNome = new LinkedHashMap<>();
+        ecommerceRepository.findByUserId(user.getId()).forEach(ecommerce ->
+                cadastradosPorNome.put(normalizarNome(ecommerce.getName()), ecommerce));
+
+        response.itens().stream()
+                .filter(Objects::nonNull)
+                .map(pedido -> pedido.ecommerce())
+                .filter(Objects::nonNull)
+                .map(OlistEcommerceInfo::nome)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(nome -> !nome.isBlank())
+                .forEach(nome -> {
+                    String nomeNormalizado = normalizarNome(nome);
+                    if (cadastradosPorNome.containsKey(nomeNormalizado)) {
+                        return;
+                    }
+
+                    Ecommerce ecommerce = new Ecommerce();
+                    ecommerce.setName(nome);
+                    ecommerce.setRate(0F);
+                    ecommerce.setFixed_rate(0F);
+                    ecommerce.setUser(user);
+                    cadastradosPorNome.put(nomeNormalizado, ecommerceRepository.save(ecommerce));
+                });
+    }
+
+    private String normalizarNome(String nome) {
+        return nome == null ? "" : nome.trim().toLowerCase(Locale.ROOT);
     }
 
     public OlistPedidoDetalhe obterPedido(Long idPedido) {

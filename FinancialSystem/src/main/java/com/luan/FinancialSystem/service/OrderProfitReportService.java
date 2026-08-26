@@ -94,8 +94,8 @@ public class OrderProfitReportService {
             List<OlistPedidoResumo> summaries = olistClient.listarPedidos(userId, startDate, endDate).itens();
             String selectedEcommerceName = normalizeName(productEcommerce.getName());
             List<OlistPedidoResumo> selected = summaries == null ? List.of() : summaries.stream()
-                    .filter(order -> order.ecommerce() != null
-                            && normalizeName(order.ecommerce().nome()).equals(selectedEcommerceName))
+                    .filter(order -> order != null && order.id() != null && order.ecommerce() != null)
+                    .filter(order -> normalizeName(order.ecommerce().nome()).equals(selectedEcommerceName))
                     .toList();
             status.total = selected.size();
             status.message = "Calculando ganho real pedido a pedido...";
