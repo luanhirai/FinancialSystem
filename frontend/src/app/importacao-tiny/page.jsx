@@ -41,6 +41,13 @@ const formatDate = (value) => {
 
 const getStatusLabel = (status) => statusLabels[status] || `Situacao ${status ?? "-"}`;
 
+const normalizeEcommerceName = (value) => String(value || "")
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .trim()
+  .replace(/\s+/g, " ")
+  .toLowerCase();
+
 export default function ImportacaoTinyPage() {
   const [filters, setFilters] = useState({
     dataInicial: toInputDate(sevenDaysAgo),
@@ -60,19 +67,19 @@ export default function ImportacaoTinyPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const fetchRegisteredEcommerces = async () => {
-      try {
-        const response = await authFetch("/ecommerce");
-        if (!response.ok) throw new Error("Nao foi possivel carregar os ecommerces.");
-        setRegisteredEcommerces(await response.json());
-      } catch (err) {
-        console.error("Erro ao buscar ecommerces cadastrados:", err);
-        setError(err.message);
-      }
-    };
+  const fetchRegisteredEcommerces = async () => {
+    const response = await authFetch("/ecommerce");
+    if (!response.ok) throw new Error("Nao foi possivel carregar os ecommerces.");
+    const data = await response.json();
+    setRegisteredEcommerces(data);
+    return data;
+  };
 
-    fetchRegisteredEcommerces();
+  useEffect(() => {
+    fetchRegisteredEcommerces().catch((err) => {
+      console.error("Erro ao buscar ecommerces cadastrados:", err);
+      setError(err.message);
+    });
   }, []);
 
   const periodIsInvalid =
@@ -80,11 +87,24 @@ export default function ImportacaoTinyPage() {
     filters.dataFinal &&
     filters.dataInicial > filters.dataFinal;
 
+  const selectedEcommerce = useMemo(
+    () => registeredEcommerces.find((ecommerce) => String(ecommerce.id) === String(reportEcommerceId)),
+    [registeredEcommerces, reportEcommerceId]
+  );
+
+  const filteredOrders = useMemo(() => {
+    if (!selectedEcommerce) return orders;
+    const selectedName = normalizeEcommerceName(selectedEcommerce.name);
+    return orders.filter((order) =>
+      normalizeEcommerceName(order.ecommerce?.nome) === selectedName
+    );
+  }, [orders, selectedEcommerce]);
+
   const summary = useMemo(() => {
-    const totalValue = orders.reduce((total, order) => total + Number(order.valor || 0), 0);
-    const approvedOrders = orders.filter((order) => Number(order.situacao) === 1).length;
+    const totalValue = filteredOrders.reduce((total, order) => total + Number(order.valor || 0), 0);
+    const approvedOrders = filteredOrders.filter((order) => Number(order.situacao) === 1).length;
     const ecommerces = new Set(
-      orders.map((order) => order.ecommerce?.nome).filter(Boolean)
+      filteredOrders.map((order) => order.ecommerce?.nome).filter(Boolean)
     );
 
     return {
@@ -92,7 +112,7 @@ export default function ImportacaoTinyPage() {
       approvedOrders,
       ecommerces: ecommerces.size,
     };
-  }, [orders]);
+  }, [filteredOrders]);
 
   const updateFilter = (key, value) => {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -148,6 +168,7 @@ export default function ImportacaoTinyPage() {
       const data = await res.json();
       setOrders(data.itens || []);
       setPagination(data.paginacao || null);
+      await fetchRegisteredEcommerces();
       setMessage(`${data.itens?.length || 0} pedidos encontrados no periodo.`);
     } catch (err) {
       console.error("Erro ao buscar pedidos do Tiny:", err);
@@ -394,9 +415,9 @@ export default function ImportacaoTinyPage() {
         <section className="tiny-stats-grid">
           <article className="stat-card glass">
             <p className="stat-label">Pedidos encontrados</p>
-            <h3 className="stat-value">{orders.length}</h3>
+            <h3 className="stat-value">{filteredOrders.length}</h3>
             <span className="stat-change neutral">
-              {pagination?.total ? `${pagination.total} no Tiny` : "Resultado atual"}
+              {selectedEcommerce ? `Filtrado por ${selectedEcommerce.name}` : pagination?.total ? `${pagination.total} no Tiny` : "Resultado atual"}
             </span>
           </article>
           <article className="stat-card glass">
@@ -437,15 +458,17 @@ export default function ImportacaoTinyPage() {
                 </tr>
               </thead>
               <tbody>
-                {!loadingOrders && orders.length === 0 && (
+                {!loadingOrders && filteredOrders.length === 0 && (
                   <tr>
                     <td colSpan="6" className="table-empty">
-                      Nenhum pedido carregado para o periodo.
+                      {selectedEcommerce
+                        ? `Nenhum pedido de ${selectedEcommerce.name} encontrado no periodo.`
+                        : "Nenhum pedido carregado para o periodo."}
                     </td>
                   </tr>
                 )}
 
-                {orders.map((order) => (
+                {filteredOrders.map((order) => (
                   <tr key={order.id}>
                     <td>
                       <strong>#{order.numeroPedido || order.id}</strong>
