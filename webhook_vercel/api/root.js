@@ -7,7 +7,7 @@ const TINY_CLIENT_ID =
   process.env.TINY_CLIENT_ID ||
   "tiny-api-479441b5ef29d2e212c3f522ad135840cbfccf54-1779109441";
 const TINY_REDIRECT_URI =
-  process.env.TINY_REDIRECT_URI || "http://webhook.casalamavievendas.com.br/";
+  process.env.TINY_REDIRECT_URI || "https://webhook.casalamavievendas.com.br/";
 const BACKEND_URL =
   process.env.BACKEND_URL || "https://bradford-nontraditionary-danna.ngrok-free.dev";
 

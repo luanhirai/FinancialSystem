@@ -17,3 +17,6 @@ cloudflared*.log
 relatorio_*.html
 relatorio_*.pdf
 relatorio_*_cache.json
+
+.vercel
+.env*
