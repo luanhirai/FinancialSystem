@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 const API_URL =
   process.env.BACKEND_URL ||
-  "https://bradford-nontraditionary-danna.ngrok-free.dev";
+  "http://localhost:8080";
 const publicRoutes = new Set(["/", "/login", "/register"]);
 
 async function isAuthenticated(request) {
@@ -12,7 +12,6 @@ async function isAuthenticated(request) {
     const response = await fetch(`${API_URL}/auth/me`, {
       headers: {
         cookie,
-        "ngrok-skip-browser-warning": "1",
       },
       cache: "no-store"
     });

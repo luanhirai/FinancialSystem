@@ -1,6 +1,6 @@
 const BACKEND_URL =
   process.env.BACKEND_URL ||
-  "https://bradford-nontraditionary-danna.ngrok-free.dev";
+  "http://localhost:8080";
 
 const hopByHopHeaders = new Set([
   "connection",
@@ -25,7 +25,6 @@ async function handler(request, context) {
   for (const header of hopByHopHeaders) {
     headers.delete(header);
   }
-  headers.set("ngrok-skip-browser-warning", "1");
 
   const init = {
     method: request.method,
