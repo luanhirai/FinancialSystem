@@ -1,0 +1,82 @@
+name: CI and Oracle deploy
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-only-password
+          MYSQL_DATABASE: FinancialSystem
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pci-only-password"
+          --health-interval=10s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Backend tests
+        working-directory: FinancialSystem
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/FinancialSystem?allowPublicKeyRetrieval=true&sslMode=DISABLED
+          SPRING_DATASOURCE_USERNAME: root
+          SPRING_DATASOURCE_PASSWORD: ci-only-password
+          SPRING_DOCKER_COMPOSE_ENABLED: 'false'
+        run: mvn -B verify
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Frontend build
+        working-directory: frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: |
+          npm ci
+          npm run build
+      - name: Check deployment script
+        run: bash -n deploy/oracle/deploy.sh
+  deploy:
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.ORACLE_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    concurrency:
+      group: oracle-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.ORACLE_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+      - name: Transfer and deploy exact commit
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER }}
+        run: |
+          set -euo pipefail
+          [[ "$ORACLE_HOST" =~ ^[a-zA-Z0-9.-]+$ ]]
+          [[ "$ORACLE_USER" =~ ^[a-zA-Z0-9_-]+$ ]]
+          git archive --format=tar.gz -o release.tar.gz HEAD FinancialSystem frontend deploy/oracle
+          release="$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes release.tar.gz "$ORACLE_USER@$ORACLE_HOST:release-$release.tar.gz"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 "$ORACLE_USER@$ORACLE_HOST" "mkdir -p ~/financial-releases/$release && tar -xzf ~/release-$release.tar.gz -C ~/financial-releases/$release && bash ~/financial-releases/$release/deploy/oracle/deploy.sh"

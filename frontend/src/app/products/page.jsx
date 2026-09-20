@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { authFetch } from "@/lib/api";
 import "./products.css";
 import Sidebar from "../components/page";
+import Pagination, { usePagination } from "../components/Pagination";
 
 const productColumns = [
   { key: "name", label: "Nome" },
@@ -223,10 +224,12 @@ export default function ProductsPage() {
   const isColumnVisible = (key) => visibleColumns.includes(key);
 
   const updateFilter = (key, value) => {
+    productPagination.resetPage();
     setFilters((currentFilters) => ({ ...currentFilters, [key]: value }));
   };
 
   const clearFilters = () => {
+    productPagination.resetPage();
     setFilters({
       name: "",
       ecommerceId: "",
@@ -267,6 +270,8 @@ export default function ProductsPage() {
 
     return true;
   });
+
+  const productPagination = usePagination(filteredProducts);
 
   return (
     <div className="dashboard-layout">
@@ -354,7 +359,7 @@ export default function ProductsPage() {
           <div className="table-toolbar">
             <div>
               <h2>Colunas da tabela</h2>
-              <p>{filteredProducts.length} de {products.length} produtos exibidos.</p>
+              <p>{filteredProducts.length} de {products.length} produtos encontrados.</p>
             </div>
           </div>
 
@@ -380,7 +385,7 @@ export default function ProductsPage() {
                     </td>
                   </tr>
                 )}
-                {filteredProducts.map((p) => {
+                {productPagination.items.map((p) => {
                   const margin = getProductMargin(p);
                   return (
                     <tr key={p.id}>
@@ -411,6 +416,7 @@ export default function ProductsPage() {
               </tbody>
             </table>
           </div>
+          <Pagination {...productPagination.controls} label="produtos" />
         </section>
       </main>
 

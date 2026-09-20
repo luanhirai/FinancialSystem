@@ -1,0 +1,74 @@
+name: financial-production
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: FinancialSystem
+      MYSQL_USER: financial
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Execute init-env.sh}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Execute init-env.sh}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", 'MYSQL_PWD="$$MYSQL_PASSWORD" mysql -h 127.0.0.1 -u "$$MYSQL_USER" "$$MYSQL_DATABASE" -e "SELECT 1" >/dev/null 2>&1']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    logging: *logging
+  backend:
+    build:
+      context: ../../FinancialSystem
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/FinancialSystem?sslMode=DISABLED&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: financial
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:?Execute init-env.sh}
+      SPRING_DOCKER_COMPOSE_ENABLED: "false"
+      SPRING_JPA_SHOW_SQL: "false"
+      APP_CORS_ALLOWED_ORIGINS: https://${APP_DOMAIN:?Execute init-env.sh}
+      JWT_SECRET: ${JWT_SECRET:?Execute init-env.sh}
+      APP_ENCRYPTION_SECRET: ${APP_ENCRYPTION_SECRET:?Execute init-env.sh}
+      OLIST_WEBHOOK_SECRET: ${OLIST_WEBHOOK_SECRET:?Execute init-env.sh}
+      JAVA_TOOL_OPTIONS: -Xms256m -Xmx1536m
+    logging: *logging
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile.oracle
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      BACKEND_URL: http://backend:8080
+    logging: *logging
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - frontend
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Execute init-env.sh}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging: *logging
+volumes:
+  mysql_data:
+  caddy_data:
+  caddy_config:

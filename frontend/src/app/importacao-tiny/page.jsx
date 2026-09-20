@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { authFetch } from "@/lib/api";
 import Sidebar from "../components/page";
+import Pagination, { usePagination } from "../components/Pagination";
 import "./importacao-tiny.css";
 
 const toInputDate = (date) => date.toISOString().slice(0, 10);
@@ -100,6 +101,8 @@ export default function ImportacaoTinyPage() {
     );
   }, [orders, selectedEcommerce]);
 
+  const orderPagination = usePagination(filteredOrders);
+
   const summary = useMemo(() => {
     const totalValue = filteredOrders.reduce((total, order) => total + Number(order.valor || 0), 0);
     const approvedOrders = filteredOrders.filter((order) => Number(order.situacao) === 1).length;
@@ -166,6 +169,7 @@ export default function ImportacaoTinyPage() {
       }
 
       const data = await res.json();
+      orderPagination.resetPage();
       setOrders(data.itens || []);
       setPagination(data.paginacao || null);
       await fetchRegisteredEcommerces();
@@ -393,7 +397,7 @@ export default function ImportacaoTinyPage() {
               <label>Ecommerce do relatorio</label>
               <select
                 value={reportEcommerceId}
-                onChange={(event) => setReportEcommerceId(event.target.value)}
+                onChange={(event) => { setReportEcommerceId(event.target.value); orderPagination.resetPage(); }}
               >
                 <option value="">Selecione o ecommerce</option>
                 {registeredEcommerces.map((ecommerce) => (
@@ -468,7 +472,7 @@ export default function ImportacaoTinyPage() {
                   </tr>
                 )}
 
-                {filteredOrders.map((order) => (
+                {orderPagination.items.map((order) => (
                   <tr key={order.id}>
                     <td>
                       <strong>#{order.numeroPedido || order.id}</strong>
@@ -509,6 +513,7 @@ export default function ImportacaoTinyPage() {
               </tbody>
             </table>
           </div>
+          <Pagination {...orderPagination.controls} label="pedidos" disabled={loadingOrders} />
         </section>
 
         {importedProducts.length > 0 && (

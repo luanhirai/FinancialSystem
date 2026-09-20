@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/auth/login", "/auth/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/olist-token/callback").permitAll()
                         .requestMatchers(HttpMethod.POST, "/olist/estoque/webhook").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/olist/vendas/webhook").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(s -> s
