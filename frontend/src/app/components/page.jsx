@@ -37,6 +37,7 @@ export default function Sidebar() {
     { label: "Produtos", path: "/products" },
     { label: "Importacao Tiny", path: "/importacao-tiny" },
     { label: "Ecommerce", path: "/ecommerce" },
+    { label: "Pedidos", path: "/orders" },
     { label: "Relatorios", path: "/reports" },
     { label: "Perfil", path: "/profile" },
     { label: "Configuracoes", path: "/rules_configuration" },
