@@ -9,7 +9,8 @@ const TINY_CLIENT_ID =
 const TINY_REDIRECT_URI =
   process.env.TINY_REDIRECT_URI || "https://webhook.casalamavievendas.com.br/";
 const BACKEND_URL =
-  process.env.BACKEND_URL || "https://bradford-nontraditionary-danna.ngrok-free.dev";
+  process.env.BACKEND_URL || "https://financeiro.casalamavievendas.com.br/api/backend";
+const OLIST_WEBHOOK_SECRET = process.env.OLIST_WEBHOOK_SECRET || "";
 
 const TINY_AUTH_URL =
   process.env.TINY_AUTH_URL ||
@@ -201,6 +202,25 @@ async function enviarEstoqueParaBackend(payload) {
   return { success: true, backendEndpoint, status: response.status };
 }
 
+async function enviarVendaParaBackend(payload) {
+  const backendEndpoint = `${BACKEND_URL}/olist/vendas/webhook`;
+  const headers = {
+    "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "1",
+  };
+  if (OLIST_WEBHOOK_SECRET) headers["X-Webhook-Secret"] = OLIST_WEBHOOK_SECRET;
+
+  const response = await fetch(backendEndpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ ...payload, clientId: TINY_CLIENT_ID }),
+  });
+  if (!response.ok) {
+    throw new Error((await response.text()) || `Backend respondeu HTTP ${response.status}.`);
+  }
+  return { success: true, backendEndpoint, status: response.status };
+}
+
 export default async function handler(req, res) {
   configurarCors(res);
   console.log("[Webhook Olist/Tiny] Requisicao recebida", {
@@ -328,6 +348,20 @@ export default async function handler(req, res) {
         return res.status(502).json({
           success: false,
           message: "Nao foi possivel aplicar a atualizacao de estoque.",
+          evento,
+        });
+      }
+    }
+
+    if (["inclusao_pedido", "atualizacao_pedido"].includes(payload.tipo)) {
+      try {
+        evento.backend = await enviarVendaParaBackend(payload);
+      } catch (requestError) {
+        evento.backend = { success: false, message: requestError.message };
+        historico.webhooks.push(evento);
+        return res.status(502).json({
+          success: false,
+          message: "Nao foi possivel salvar o pedido de venda.",
           evento,
         });
       }

@@ -27,14 +27,19 @@ public class OlistSalesWebhookController {
     @PostMapping("/webhook")
     public ResponseEntity<OlistSalesOrderResponse> receive(
             @RequestHeader(value = "X-Webhook-Secret", required = false) String suppliedSecret,
-            @RequestBody OlistSalesWebhookRequest request) {
+            @RequestBody tools.jackson.databind.JsonNode payload) {
         if (!authorized(suppliedSecret)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        return ResponseEntity.ok(service.receive(request));
+        return ResponseEntity.ok(service.receive(new tools.jackson.databind.ObjectMapper().treeToValue(payload, OlistSalesWebhookRequest.class), payload.toString()));
     }
 
     @GetMapping("/pedidos")
     public List<OlistSalesOrderResponse> list() {
         return service.listForLoggedUser();
+    }
+
+    @PostMapping("/pedidos/{id}/recalcular")
+    public OlistSalesOrderResponse recalculate(@PathVariable Long id) {
+        return service.recalculate(id);
     }
 
     private boolean authorized(String suppliedSecret) {

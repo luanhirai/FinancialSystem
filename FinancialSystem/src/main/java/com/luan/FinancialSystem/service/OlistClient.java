@@ -133,6 +133,13 @@ public class OlistClient {
                         total != null ? total : pedidos.size()));
     }
 
+    public tools.jackson.databind.JsonNode obterPedidoCompleto(Long idPedido, Long userId) {
+        return executeWithRetryForUser(() -> restClient.get()
+                .uri("/pedidos/{idPedido}", idPedido)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(userId))
+                .retrieve().body(tools.jackson.databind.JsonNode.class), userId);
+    }
+
     public OlistPedidoDetalhe obterPedido(Long idPedido, Long userId) {
         return executeWithRetryForUser(() -> restClient.get()
                 .uri("/pedidos/{idPedido}", idPedido)

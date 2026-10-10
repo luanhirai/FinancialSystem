@@ -20,6 +20,7 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class OlistSalesWebhookServiceTests {
+    @Mock SalesOrderFinancialService financialService;
     @Mock OlistSalesOrderRepository orderRepository;
     @Mock UserRepository userRepository;
     @Mock AuthenticatedUserService authenticatedUserService;
@@ -32,7 +33,7 @@ class OlistSalesWebhookServiceTests {
         when(orderRepository.findByUserIdAndOlistOrderId(7L, 123L)).thenReturn(Optional.empty());
         when(orderRepository.save(org.mockito.ArgumentMatchers.any())).thenAnswer(i -> i.getArgument(0));
 
-        new OlistSalesWebhookService(orderRepository, userRepository, authenticatedUserService, new ObjectMapper())
+        new OlistSalesWebhookService(orderRepository, userRepository, authenticatedUserService, new ObjectMapper(), financialService)
                 .receive(request);
 
         ArgumentCaptor<OlistSalesOrder> captor = ArgumentCaptor.forClass(OlistSalesOrder.class);
@@ -50,7 +51,7 @@ class OlistSalesWebhookServiceTests {
         when(orderRepository.findByUserIdAndOlistOrderId(7L, 123L)).thenReturn(Optional.of(existing));
         when(orderRepository.save(existing)).thenReturn(existing);
 
-        new OlistSalesWebhookService(orderRepository, userRepository, authenticatedUserService, new ObjectMapper())
+        new OlistSalesWebhookService(orderRepository, userRepository, authenticatedUserService, new ObjectMapper(), financialService)
                 .receive(request("atualizacao_pedido", "faturado"));
 
         assertThat(existing.getId()).isEqualTo(9L);
@@ -66,6 +67,7 @@ class OlistSalesWebhookServiceTests {
                 .withBean(OlistSalesOrderRepository.class, () -> orderRepository)
                 .withBean(UserRepository.class, () -> userRepository)
                 .withBean(AuthenticatedUserService.class, () -> authenticatedUserService)
+                .withBean(SalesOrderFinancialService.class, () -> financialService)
                 .withBean(OlistSalesWebhookService.class)
                 .run(context -> {
                     assertThat(context).hasNotFailed();

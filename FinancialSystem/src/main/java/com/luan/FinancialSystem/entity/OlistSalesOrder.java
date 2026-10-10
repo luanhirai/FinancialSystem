@@ -49,6 +49,12 @@ public class OlistSalesOrder {
     private String shippingMethodDescription;
     private String customerName;
     private String customerDocument;
+    @Column(columnDefinition = "LONGTEXT")
+    private String orderDetails;
+    @Column(precision = 19, scale = 2)
+    private java.math.BigDecimal realValue;
+    @Column(columnDefinition = "TEXT")
+    private String financialDetails;
 
     @Lob
     @Column(nullable = false, columnDefinition = "TEXT")

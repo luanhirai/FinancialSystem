@@ -27,17 +27,24 @@ public class OlistSalesWebhookService {
     private final UserRepository userRepository;
     private final AuthenticatedUserService authenticatedUserService;
     private final ObjectMapper objectMapper;
+    private final SalesOrderFinancialService financialService;
 
     public OlistSalesWebhookService(OlistSalesOrderRepository orderRepository, UserRepository userRepository,
-                                    AuthenticatedUserService authenticatedUserService, ObjectMapper objectMapper) {
+                                    AuthenticatedUserService authenticatedUserService, ObjectMapper objectMapper, SalesOrderFinancialService financialService) {
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
         this.authenticatedUserService = authenticatedUserService;
         this.objectMapper = objectMapper;
+        this.financialService = financialService;
     }
 
     @Transactional
     public OlistSalesOrderResponse receive(OlistSalesWebhookRequest request) {
+        return receive(request, toJson(request));
+    }
+
+    @Transactional
+    public OlistSalesOrderResponse receive(OlistSalesWebhookRequest request, String rawPayload) {
         validate(request);
         User user = userRepository.findByClientId(request.clientId().trim())
                 .orElseThrow(() -> new IllegalStateException("Usuario do webhook de vendas nao encontrado."));
@@ -51,6 +58,8 @@ public class OlistSalesWebhookService {
             order.setCreatedAt(now);
         }
         map(order, request, now);
+        order.setRawPayload(rawPayload);
+        financialService.enrich(order);
         return OlistSalesOrderResponse.from(orderRepository.save(order));
     }
 
@@ -59,6 +68,17 @@ public class OlistSalesWebhookService {
         Long userId = authenticatedUserService.getLoggedUser().getId();
         return orderRepository.findByUserIdOrderByOrderDateDescNumberDesc(userId).stream()
                 .map(OlistSalesOrderResponse::from).toList();
+    }
+
+    @Transactional
+    public OlistSalesOrderResponse recalculate(Long id) {
+        Long userId = authenticatedUserService.getLoggedUser().getId();
+        OlistSalesOrder order = orderRepository.findById(id)
+                .filter(o -> o.getUser().getId().equals(userId))
+                .orElseThrow(() -> new IllegalArgumentException("Pedido nao encontrado."));
+        financialService.enrich(order);
+        order.setUpdatedAt(Instant.now());
+        return OlistSalesOrderResponse.from(orderRepository.save(order));
     }
 
     private void map(OlistSalesOrder order, OlistSalesWebhookRequest request, Instant now) {
