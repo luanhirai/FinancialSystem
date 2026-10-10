@@ -20,6 +20,10 @@ public class SalesOrderFinancialService {
         Long userId=order.getUser().getId();
         JsonNode data=client.obterPedidoCompleto(order.getOlistOrderId(),userId);
         if(data==null || !data.isObject()) throw new IllegalStateException("Pedido completo indisponivel na Olist.");
+        applyDetails(order, data);
+    }
+    public void applyDetails(OlistSalesOrder order, JsonNode data) {
+        Long userId = order.getUser().getId();
         order.setOrderDetails(data.toString());
         order.setRealValue(null);
         Map<String,Object> result=new LinkedHashMap<>();

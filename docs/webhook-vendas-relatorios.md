@@ -6,3 +6,6 @@ A p?gina /reports lista as vendas do usu?rio, atualiza a cada 15 segundos e perm
 Valor real = total do pedido - frete cobrado - custo dos produtos - taxa percentual do ecommerce sobre total sem frete - taxa fixa por unidade - imposto cadastrado sobre total sem frete. Descontos j? fazem parte do total. S?o valores calculados com as configura??es locais, n?o concilia??o do repasse efetivo do marketplace. Custos e taxas ausentes deixam o c?lculo pendente, sem estimar custos. Ap?s cadastr?-los, use Recalcular.
 Cancelados n?o entram no resumo. Nenhuma chamada lan?a estoque ou contas automaticamente.
 As colunas novas s?o criadas pela configura??o existente spring.jpa.hibernate.ddl-auto=update. Fa?a deploy do backend e frontend; este trabalho n?o altera a conta Olist nem publica o projeto.
+
+## Recuperacao de pedidos
+O backend verifica pedidos ausentes dos ultimos 30 dias a cada 2 minutos usando a API autenticada. A tela Pedidos mostra o estado da sincronizacao e permite Recuperar pedidos do Tiny para o periodo escolhido. Cada pedido e salvo individualmente, e falhas individuais nao impedem os demais. Pedidos existentes nao sao duplicados; atualizacoes continuam recebidas via webhook. Essa recuperacao complementa o webhook e nao confirma que Notificacoes de vendas esteja ativo na conta Tiny.

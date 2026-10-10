@@ -21,6 +21,7 @@ function Fields({ value }) {
 export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState([]);
+  const [sync, setSync] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -38,6 +39,8 @@ export default function OrdersPage() {
       if (response.status === 401) { router.push("/login"); return; }
       if (!response.ok) throw new Error("N?o foi poss?vel carregar os pedidos.");
       setOrders(await response.json());
+      const syncResponse = await authFetch("/olist/vendas/sincronizacao");
+      if (syncResponse.ok) setSync(await syncResponse.json());
       setError("");
     } catch (exception) { setError(exception.message); }
     finally { setLoading(false); setRefreshing(false); }
@@ -59,6 +62,18 @@ export default function OrdersPage() {
     const part = type => parts.find(p => p.type === type)?.value;
     return part("year") + "-" + part("month") + "-" + part("day");
   }, [dateType]);
+
+  const synchronize = async () => {
+    if (start && end && start > end) { setError("Informe um periodo valido."); return; }
+    try {
+      const params = new URLSearchParams();
+      if (start) params.set("dataInicial", start);
+      if (end) params.set("dataFinal", end);
+      const response = await authFetch("/olist/vendas/sincronizacao?" + params, {method:"POST"});
+      if (!response.ok) throw new Error("Nao foi possivel iniciar a recuperacao de pedidos.");
+      setSync(await response.json()); setError("");
+    } catch (exception) { setError(exception.message); }
+  };
 
   const invalidPeriod = !!(start && end && start > end);
   const statuses = [...new Set(orders.map(o => o.statusDescription).filter(Boolean))].sort();
@@ -91,6 +106,14 @@ export default function OrdersPage() {
       <label>At?<input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
       <label>Status<select value={status} onChange={e => setStatus(e.target.value)}><option value="">Todos</option>{statuses.map(s => <option key={s}>{s}</option>)}</select></label>
       <button onClick={() => { setSearch(""); setStart(""); setEnd(""); setStatus(""); }}>Limpar filtros</button>
+    </section>
+    <section className="orders-sync glass" style={{padding:20, marginTop:20}}>
+      <strong>Conexao com o Tiny</strong>
+      <p>Recuperacao automatica de pedidos ausentes a cada 2 minutos, considerando os ultimos 30 dias. Para outro periodo, preencha as datas acima.</p>
+      {sync && <p role="status">{sync.running ? "Buscando pedidos no Tiny..." : sync.message}
+        {sync.lastAttemptAt && " Ultima verificacao: " + new Date(sync.lastAttemptAt).toLocaleString("pt-BR", {timeZone:"America/Sao_Paulo"})}</p>}
+      {sync?.error && <p role="alert">{sync.error}</p>}
+      <button disabled={sync?.running} onClick={synchronize}>{sync?.running ? "Recuperando..." : "Recuperar pedidos do Tiny"}</button>
     </section>
     {invalidPeriod && <p role="alert">A data inicial deve ser anterior ou igual ? data final.</p>}
     {error && <p role="alert">{error}</p>}

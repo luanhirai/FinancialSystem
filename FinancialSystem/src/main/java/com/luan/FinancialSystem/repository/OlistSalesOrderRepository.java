@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface OlistSalesOrderRepository extends JpaRepository<OlistSalesOrder, Long> {
+    boolean existsByUserIdAndOlistOrderId(Long userId, Long olistOrderId);
     Optional<OlistSalesOrder> findByUserIdAndOlistOrderId(Long userId, Long olistOrderId);
     List<OlistSalesOrder> findByUserIdOrderByOrderDateDescNumberDesc(Long userId);
 }

@@ -81,6 +81,52 @@ public class OlistSalesWebhookService {
         return OlistSalesOrderResponse.from(orderRepository.save(order));
     }
 
+    @Transactional
+    public OlistSalesOrderResponse importFromApi(Long userId, tools.jackson.databind.JsonNode data) {
+        if (data == null || !data.isObject() || !data.path("id").isNumber())
+            throw new IllegalArgumentException("Pedido da API invalido.");
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario nao encontrado."));
+        Long orderId = data.path("id").asLong();
+        OlistSalesOrder order = orderRepository.findByUserIdAndOlistOrderId(userId, orderId)
+                .orElseGet(OlistSalesOrder::new);
+        Instant now = Instant.now();
+        if (order.getId() == null) {
+            order.setUser(user); order.setOlistOrderId(orderId); order.setCreatedAt(now);
+            order.setAccountDocument(""); order.setEventType("sincronizacao_api");
+            order.setWebhookVersion("api-v3"); order.setRawPayload("{}"); order.setLastWebhookAt(now);
+        }
+        order.setNumber(data.path("numeroPedido").asLong(orderId));
+        String date = data.path("data").asText("");
+        order.setOrderDate(date.length() >= 10 ? parseDate(date.substring(0, 10)) :
+                LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo")));
+        order.setEcommerceName(text(data.path("ecommerce"), "nome"));
+        order.setEcommerceOrderId(text(data.path("ecommerce"), "numeroPedidoEcommerce"));
+        order.setCustomerName(text(data.path("cliente"), "nome"));
+        order.setCustomerDocument(onlyDigits(text(data.path("cliente"), "cpfCnpj")));
+        order.setContactId(nullableLong(data.path("cliente"), "id"));
+        order.setInvoiceId(nullableLong(data, "idNotaFiscal"));
+        order.setStatusCode(data.path("situacao").asText(""));
+        order.setStatusDescription(switch (data.path("situacao").asInt(-1)) {
+            case 0 -> "Em aberto"; case 1 -> "Faturado"; case 2 -> "Cancelado";
+            case 3 -> "Aprovado"; case 4 -> "Preparando envio"; case 5 -> "Enviado";
+            case 6 -> "Entregue"; case 7 -> "Pronto para envio"; case 8 -> "Dados incompletos";
+            case 9 -> "Nao entregue"; default -> "Situacao nao informada";
+        });
+        var shipping = data.path("transportador").path("formaEnvio");
+        order.setShippingMethodId(text(shipping, "id"));
+        order.setShippingMethodDescription(text(shipping, "nome"));
+        order.setUpdatedAt(now);
+        financialService.applyDetails(order, data);
+        return OlistSalesOrderResponse.from(orderRepository.save(order));
+    }
+    private String text(tools.jackson.databind.JsonNode node, String field) {
+        return node.path(field).isNull() || node.path(field).isMissingNode() ? null : node.path(field).asText();
+    }
+    private Long nullableLong(tools.jackson.databind.JsonNode node, String field) {
+        return node.path(field).isNumber() ? node.path(field).asLong() : null;
+    }
+
     private void map(OlistSalesOrder order, OlistSalesWebhookRequest request, Instant now) {
         var data = request.dados();
         order.setNumber(data.numero());
@@ -117,7 +163,7 @@ public class OlistSalesWebhookService {
 
     private LocalDate parseDate(String value) {
         try {
-            return LocalDate.parse(value, TINY_DATE);
+            return value.contains("-") ? LocalDate.parse(value) : LocalDate.parse(value, TINY_DATE);
         } catch (DateTimeParseException exception) {
             throw new IllegalArgumentException("Data do pedido invalida; use dd/MM/AAAA.");
         }

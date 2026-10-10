@@ -8,6 +8,8 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
+    @Query("select u from User u where u.client_id is not null and u.olist_access_token is not null")
+    java.util.List<User> findOlistConnectedUsers();
     Optional<User> findByEmail(String email);
 
     @Query("select u from User u where u.client_id = :clientId")

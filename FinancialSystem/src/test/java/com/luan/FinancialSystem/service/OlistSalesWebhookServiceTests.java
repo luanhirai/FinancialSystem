@@ -74,6 +74,27 @@ class OlistSalesWebhookServiceTests {
                     assertThat(context).hasSingleBean(OlistSalesWebhookService.class);
                 });
     }
+    @Test
+    void importsApiOrderWithIsoDateAndUpdatesSameRecord() {
+        User user=new User(); user.setId(7L);
+        OlistSalesOrder existing=new OlistSalesOrder(); existing.setId(9L); existing.setUser(user);
+        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+        when(orderRepository.findByUserIdAndOlistOrderId(7L,123L)).thenReturn(Optional.of(existing));
+        when(orderRepository.save(existing)).thenReturn(existing);
+        var data=new ObjectMapper().readTree("""
+            {"id":123,"numeroPedido":456,"data":"2026-10-10","situacao":3,
+             "cliente":{"nome":"Cliente","id":22},
+             "ecommerce":{"nome":"Loja","numeroPedidoEcommerce":"X123"}}
+            """);
+        new OlistSalesWebhookService(orderRepository,userRepository,authenticatedUserService,
+                new ObjectMapper(),financialService).importFromApi(7L,data);
+        assertThat(existing.getId()).isEqualTo(9L);
+        assertThat(existing.getOrderDate()).hasToString("2026-10-10");
+        assertThat(existing.getStatusDescription()).isEqualTo("Aprovado");
+        assertThat(existing.getEcommerceName()).isEqualTo("Loja");
+        verify(financialService).applyDetails(existing,data);
+    }
+
     private OlistSalesWebhookRequest request(String type, String status) {
         return new OlistSalesWebhookRequest("client-1", "1.0.0", "48.404.755/0001-88", type,
                 new OlistSalesWebhookRequest.Dados(123L, 456L, "06/09/2026", "X123", status,

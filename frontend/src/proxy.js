@@ -70,6 +70,7 @@ export const config = {
     "/profile/:path*",
     "/rules_configuration/:path*",
     "/reports/:path*",
+    "/orders/:path*",
     "/settings/:path*"
   ]
 };
