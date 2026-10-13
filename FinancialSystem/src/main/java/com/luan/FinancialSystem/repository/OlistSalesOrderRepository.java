@@ -9,5 +9,6 @@ import java.util.Optional;
 public interface OlistSalesOrderRepository extends JpaRepository<OlistSalesOrder, Long> {
     boolean existsByUserIdAndOlistOrderId(Long userId, Long olistOrderId);
     Optional<OlistSalesOrder> findByUserIdAndOlistOrderId(Long userId, Long olistOrderId);
-    List<OlistSalesOrder> findByUserIdOrderByOrderDateDescNumberDesc(Long userId);
+    List<OlistSalesOrder> findByUserIdAndOrderDateBetweenOrderByOrderDateDescNumberDesc(Long userId, java.time.LocalDate start, java.time.LocalDate end);
+    List<OlistSalesOrder> findByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByOrderDateDescNumberDesc(Long userId, java.time.Instant start, java.time.Instant end);
 }

@@ -26,7 +26,7 @@ public class OlistSalesSyncService {
     public Status status() { return jobs.getOrDefault(auth.getLoggedUser().getId(), new Status()); }
     public Status start(LocalDate start, LocalDate end) {
         LocalDate today=LocalDate.now(ZoneId.of("America/Sao_Paulo"));
-        if(start==null) start=today.minusDays(30);
+        if(start==null) start=today;
         if(end==null) end=today;
         if(start.isAfter(end)) throw new IllegalArgumentException("Periodo invalido.");
         return launch(auth.getLoggedUser().getId(),start,end);
@@ -34,7 +34,7 @@ public class OlistSalesSyncService {
     @Scheduled(fixedDelay=120000, initialDelay=15000)
     public void scheduledSync() {
         LocalDate today=LocalDate.now(ZoneId.of("America/Sao_Paulo"));
-        for(var user: users.findOlistConnectedUsers()) launch(user.getId(),today.minusDays(30),today);
+        for(var user: users.findOlistConnectedUsers()) launch(user.getId(),today,today);
     }
     private Status launch(Long userId, LocalDate start, LocalDate end) {
         Status job=jobs.computeIfAbsent(userId,id->new Status());

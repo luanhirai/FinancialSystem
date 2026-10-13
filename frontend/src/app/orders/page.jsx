@@ -7,6 +7,7 @@ import Sidebar from "../components/page";
 import "../dashboard/dashboard.css";
 import "./orders.css";
 
+const today = () => new Intl.DateTimeFormat("en-CA", {timeZone:"America/Sao_Paulo", year:"numeric", month:"2-digit", day:"2-digit"}).format(new Date());
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const money = value => value == null ? "Pendente" : currency.format(value);
 const dateLabel = value => value ? value.split("-").reverse().join("/") : "Sem data";
@@ -26,8 +27,8 @@ export default function OrdersPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
+  const [start, setStart] = useState(today);
+  const [end, setEnd] = useState(today);
   const [status, setStatus] = useState("");
   const [dateType, setDateType] = useState("orderDate");
   const [selected, setSelected] = useState(null);
@@ -35,7 +36,9 @@ export default function OrdersPage() {
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
-      const response = await authFetch("/olist/vendas/pedidos");
+      if (start && end && start > end) return;
+      const params = new URLSearchParams({dataInicial:start || end || today(), dataFinal:end || start || today(), tipoData:dateType});
+      const response = await authFetch("/olist/vendas/pedidos?" + params);
       if (response.status === 401) { router.push("/login"); return; }
       if (!response.ok) throw new Error("N?o foi poss?vel carregar os pedidos.");
       setOrders(await response.json());
@@ -44,7 +47,7 @@ export default function OrdersPage() {
       setError("");
     } catch (exception) { setError(exception.message); }
     finally { setLoading(false); setRefreshing(false); }
-  }, [router]);
+  }, [router, start, end, dateType]);
 
   useEffect(() => {
     load();
@@ -105,11 +108,11 @@ export default function OrdersPage() {
       <label>De<input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
       <label>At?<input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
       <label>Status<select value={status} onChange={e => setStatus(e.target.value)}><option value="">Todos</option>{statuses.map(s => <option key={s}>{s}</option>)}</select></label>
-      <button onClick={() => { setSearch(""); setStart(""); setEnd(""); setStatus(""); }}>Limpar filtros</button>
+      <button onClick={() => { setSearch(""); setStart(today()); setEnd(today()); setStatus(""); }}>Limpar filtros</button>
     </section>
     <section className="orders-sync glass" style={{padding:20, marginTop:20}}>
       <strong>Conexao com o Tiny</strong>
-      <p>Recuperacao automatica de pedidos ausentes a cada 2 minutos, considerando os ultimos 30 dias. Para outro periodo, preencha as datas acima.</p>
+      <p>Recuperacao automatica de pedidos ausentes a cada 2 minutos, considerando apenas o dia atual. Para outro periodo, preencha as datas acima.</p>
       {sync && <p role="status">{sync.running ? "Buscando pedidos no Tiny..." : sync.message}
         {sync.lastAttemptAt && " Ultima verificacao: " + new Date(sync.lastAttemptAt).toLocaleString("pt-BR", {timeZone:"America/Sao_Paulo"})}</p>}
       {sync?.error && <p role="alert">{sync.error}</p>}

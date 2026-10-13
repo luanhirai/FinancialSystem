@@ -64,10 +64,20 @@ public class OlistSalesWebhookService {
     }
 
     @Transactional(readOnly = true)
-    public List<OlistSalesOrderResponse> listForLoggedUser() {
+    public List<OlistSalesOrderResponse> listForLoggedUser(LocalDate start, LocalDate end, String dateType) {
         Long userId = authenticatedUserService.getLoggedUser().getId();
-        return orderRepository.findByUserIdOrderByOrderDateDescNumberDesc(userId).stream()
-                .map(OlistSalesOrderResponse::from).toList();
+        var zone = java.time.ZoneId.of("America/Sao_Paulo");
+        LocalDate today = LocalDate.now(zone);
+        if (start == null) start = end == null ? today : end;
+        if (end == null) end = start;
+        if (start.isAfter(end)) throw new IllegalArgumentException("Periodo invalido.");
+        if (!"orderDate".equals(dateType) && !"createdAt".equals(dateType))
+            throw new IllegalArgumentException("Tipo de data invalido.");
+        List<OlistSalesOrder> orders = "createdAt".equals(dateType)
+                ? orderRepository.findByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByOrderDateDescNumberDesc(
+                        userId, start.atStartOfDay(zone).toInstant(), end.plusDays(1).atStartOfDay(zone).toInstant())
+                : orderRepository.findByUserIdAndOrderDateBetweenOrderByOrderDateDescNumberDesc(userId, start, end);
+        return orders.stream().map(OlistSalesOrderResponse::from).toList();
     }
 
     @Transactional

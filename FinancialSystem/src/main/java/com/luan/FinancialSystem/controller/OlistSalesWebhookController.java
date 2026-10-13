@@ -33,8 +33,14 @@ public class OlistSalesWebhookController {
     }
 
     @GetMapping("/pedidos")
-    public List<OlistSalesOrderResponse> list() {
-        return service.listForLoggedUser();
+    public List<OlistSalesOrderResponse> list(
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate data,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dataInicial,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dataFinal,
+            @RequestParam(defaultValue = "orderDate") String tipoData) {
+        return service.listForLoggedUser(data != null ? data : dataInicial, data != null ? data : dataFinal, tipoData);
     }
 
     @PostMapping("/pedidos/{id}/recalcular")

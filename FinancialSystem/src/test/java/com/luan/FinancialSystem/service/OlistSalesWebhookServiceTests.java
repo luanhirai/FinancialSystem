@@ -95,6 +95,43 @@ class OlistSalesWebhookServiceTests {
         verify(financialService).applyDetails(existing,data);
     }
 
+
+    @Test
+    void defaultsSalesSearchToToday() {
+        User user = new User(); user.setId(7L);
+        when(authenticatedUserService.getLoggedUser()).thenReturn(user);
+        var date = java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo"));
+        when(orderRepository.findByUserIdAndOrderDateBetweenOrderByOrderDateDescNumberDesc(7L, date, date)).thenReturn(java.util.List.of());
+        var result = new OlistSalesWebhookService(orderRepository, userRepository, authenticatedUserService,
+                new ObjectMapper(), financialService).listForLoggedUser(null, null, "orderDate");
+        assertThat(result).isEmpty();
+        verify(orderRepository).findByUserIdAndOrderDateBetweenOrderByOrderDateDescNumberDesc(7L, date, date);
+    }
+
+    @Test
+    void searchesSelectedOrderPeriod() {
+        User user = new User(); user.setId(7L);
+        when(authenticatedUserService.getLoggedUser()).thenReturn(user);
+        var date = java.time.LocalDate.of(2026, 9, 6);
+        when(orderRepository.findByUserIdAndOrderDateBetweenOrderByOrderDateDescNumberDesc(7L, date, date.plusDays(2))).thenReturn(java.util.List.of());
+        var result = new OlistSalesWebhookService(orderRepository, userRepository, authenticatedUserService,
+                new ObjectMapper(), financialService).listForLoggedUser(date, date.plusDays(2), "orderDate");
+        assertThat(result).isEmpty();
+        verify(orderRepository).findByUserIdAndOrderDateBetweenOrderByOrderDateDescNumberDesc(7L, date, date.plusDays(2));
+    }
+
+    @Test
+    void searchesRegistrationDayInBusinessTimezone() {
+        User user = new User(); user.setId(7L);
+        when(authenticatedUserService.getLoggedUser()).thenReturn(user);
+        var date = java.time.LocalDate.of(2026, 9, 6);
+        when(orderRepository.findByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByOrderDateDescNumberDesc(7L, java.time.Instant.parse("2026-09-06T03:00:00Z"), java.time.Instant.parse("2026-09-07T03:00:00Z"))).thenReturn(java.util.List.of());
+        var result = new OlistSalesWebhookService(orderRepository, userRepository, authenticatedUserService,
+                new ObjectMapper(), financialService).listForLoggedUser(date, date, "createdAt");
+        assertThat(result).isEmpty();
+        verify(orderRepository).findByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByOrderDateDescNumberDesc(7L, java.time.Instant.parse("2026-09-06T03:00:00Z"), java.time.Instant.parse("2026-09-07T03:00:00Z"));
+    }
+
     private OlistSalesWebhookRequest request(String type, String status) {
         return new OlistSalesWebhookRequest("client-1", "1.0.0", "48.404.755/0001-88", type,
                 new OlistSalesWebhookRequest.Dados(123L, 456L, "06/09/2026", "X123", status,
