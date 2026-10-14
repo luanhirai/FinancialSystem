@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authFetch } from "@/lib/api";
 import Sidebar from "../components/page";
@@ -11,10 +11,14 @@ const today = () => new Intl.DateTimeFormat("en-CA", {timeZone:"America/Sao_Paul
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const money = value => value == null ? "Pendente" : currency.format(value);
 const dateLabel = value => value ? value.split("-").reverse().join("/") : "Sem data";
-function parse(value) { try { return JSON.parse(value) || {}; } catch { return {}; } }
+function parse(value) {
+  if (value && typeof value === "object") return value;
+  try { return JSON.parse(value) || {}; } catch { return {}; }
+}
 function Fields({ value }) {
-  if (value == null) return <span>Sem informa??o</span>;
+  if (value == null) return <span>Sem informação</span>;
   if (typeof value !== "object") return <span>{String(value)}</span>;
+  if (!Object.keys(value).length) return <span>Sem informação</span>;
   return <dl className="order-fields">{Object.entries(value).map(([key, child]) =>
     <div key={key}><dt>{key}</dt><dd><Fields value={child} /></dd></div>)}</dl>;
 }
@@ -32,6 +36,25 @@ export default function OrdersPage() {
   const [status, setStatus] = useState("");
   const [dateType, setDateType] = useState("orderDate");
   const [selected, setSelected] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const dialogRef = useRef(null);
+
+  useEffect(() => { setPage(1); }, [search, status, start, end, dateType, pageSize]);
+
+  useEffect(() => {
+    if (!selected) return;
+    const dialog = dialogRef.current;
+    const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement;
+    if (!dialog.open) dialog.showModal();
+    document.body.style.overflow = "hidden";
+    return () => {
+      if (dialog.open) dialog.close();
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
+  }, [selected]);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -40,7 +63,7 @@ export default function OrdersPage() {
       const params = new URLSearchParams({dataInicial:start || end || today(), dataFinal:end || start || today(), tipoData:dateType});
       const response = await authFetch("/olist/vendas/pedidos?" + params);
       if (response.status === 401) { router.push("/login"); return; }
-      if (!response.ok) throw new Error("N?o foi poss?vel carregar os pedidos.");
+      if (!response.ok) throw new Error("Não foi possível carregar os pedidos.");
       setOrders(await response.json());
       const syncResponse = await authFetch("/olist/vendas/sincronizacao");
       if (syncResponse.ok) setSync(await syncResponse.json());
@@ -98,15 +121,30 @@ export default function OrdersPage() {
   }, [orders, search, status, start, end, getDate, invalidPeriod]);
   const count = groups.reduce((sum, [, rows]) => sum + rows.length, 0);
 
+  const pageCount = Math.max(1, Math.ceil(count / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const offset = (currentPage - 1) * pageSize;
+  const visibleGroups = useMemo(() => {
+    const result = new Map();
+    const rows = groups.flatMap(([date, orders]) => orders.map(order => ({ date, order })));
+    for (const { date, order } of rows.slice(offset, offset + pageSize)) {
+      if (!result.has(date)) result.set(date, []);
+      result.get(date).push(order);
+    }
+    return [...result.entries()];
+  }, [groups, offset, pageSize]);
+
+  useEffect(() => { setPage(value => Math.min(value, pageCount)); }, [pageCount]);
+
   return <div className="dashboard-layout"><Sidebar /><main className="orders-main">
     <header className="orders-heading"><div><h1>Pedidos</h1>
-      <p>Todos os pedidos cadastrados no sistema, agrupados por data. Atualiza??o autom?tica a cada 15 segundos.</p>
+      <p>Todos os pedidos cadastrados no sistema, agrupados por data. Atualização automática a cada 15 segundos.</p>
     </div><button disabled={refreshing} onClick={load}>{refreshing ? "Atualizando..." : "Atualizar"}</button></header>
     <section className="orders-filters glass" aria-label="Filtros de pedidos">
       <label className="orders-search">Buscar<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Pedido, cliente ou ecommerce" /></label>
       <label>Agrupar por<select value={dateType} onChange={e => setDateType(e.target.value)}><option value="orderDate">Data do pedido</option><option value="createdAt">Data de cadastro</option></select></label>
       <label>De<input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
-      <label>At?<input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
+      <label>Até<input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
       <label>Status<select value={status} onChange={e => setStatus(e.target.value)}><option value="">Todos</option>{statuses.map(s => <option key={s}>{s}</option>)}</select></label>
       <button onClick={() => { setSearch(""); setStart(today()); setEnd(today()); setStatus(""); }}>Limpar filtros</button>
     </section>
@@ -118,19 +156,19 @@ export default function OrdersPage() {
       {sync?.error && <p role="alert">{sync.error}</p>}
       <button disabled={sync?.running} onClick={synchronize}>{sync?.running ? "Recuperando..." : "Recuperar pedidos do Tiny"}</button>
     </section>
-    {invalidPeriod && <p role="alert">A data inicial deve ser anterior ou igual ? data final.</p>}
+    {invalidPeriod && <p role="alert">A data inicial deve ser anterior ou igual à data final.</p>}
     {error && <p role="alert">{error}</p>}
     {loading ? <p role="status">Carregando pedidos...</p> : <>
       <p className="orders-count">{count} pedido(s) em {groups.length} data(s).</p>
       {!groups.length && !invalidPeriod && <div className="orders-empty glass">{orders.length ? "Nenhum pedido corresponde aos filtros." : "Nenhum pedido cadastrado no sistema."}</div>}
-      {groups.map(([date, rows]) => {
+      {visibleGroups.map(([date, rows]) => {
         const total = rows.reduce((sum, order) => sum + Number(parse(order.financialDetails).total ?? parse(order.orderDetails).valorTotalPedido ?? 0), 0);
         return <section className="orders-day glass" key={date}>
-          <header><h2>{dateLabel(date)}</h2><span>{rows.length} pedido(s) ? Total informado: {currency.format(total)}</span></header>
+          <header><h2>{dateLabel(date)}</h2><span>{rows.length} pedido(s) · Total nesta página: {currency.format(total)}</span></header>
           <div className="orders-table"><table><thead><tr>{["Pedido", "Cliente", "Ecommerce", "Status", "Total", "Valor real", "Detalhes"].map(h => <th key={h}>{h}</th>)}</tr></thead>
             <tbody>{rows.map(order => <tr key={order.id}>
               <td><strong>#{order.number}</strong><small>ID Tiny: {order.olistOrderId}</small></td>
-              <td>{order.customerName || "Sem informa??o"}</td><td>{order.ecommerceName || "Sem informa??o"}</td>
+              <td>{order.customerName || "Sem informação"}</td><td>{order.ecommerceName || "Sem informação"}</td>
               <td><span className="order-status">{order.statusDescription || order.statusCode}</span></td>
               <td>{money(parse(order.financialDetails).total ?? parse(order.orderDetails).valorTotalPedido)}</td>
               <td>{money(order.realValue)}</td><td><button onClick={() => setSelected(order)}>Ver detalhes</button></td>
@@ -138,12 +176,39 @@ export default function OrdersPage() {
         </section>;
       })}
     </>}
-    {selected && <section className="order-detail glass" aria-label={"Detalhes do pedido " + selected.number}>
-      <header><h2>Pedido #{selected.number}</h2><button onClick={() => setSelected(null)}>Fechar detalhes</button></header>
-      <p>Data do pedido: {dateLabel(selected.orderDate)} ? Cadastro: {selected.createdAt ? new Date(selected.createdAt).toLocaleString("pt-BR", {timeZone:"America/Sao_Paulo"}) : "Sem informa??o"}</p>
+    {!loading && count > 0 && <nav className="orders-pagination glass" aria-label="Paginação de pedidos">
+      <p role="status">Mostrando {offset + 1}–{Math.min(offset + pageSize, count)} de {count} pedidos</p>
+      <label>Pedidos por página<select value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
+        {[10, 20, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}
+      </select></label>
+      <div className="orders-page-controls">
+        <button type="button" disabled={currentPage === 1} onClick={() => setPage(1)} aria-label="Primeira página">Primeira</button>
+        <button type="button" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Anterior</button>
+        <span>Página {currentPage} de {pageCount}</span>
+        <button type="button" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>Próxima</button>
+        <button type="button" disabled={currentPage === pageCount} onClick={() => setPage(pageCount)} aria-label="Última página">Última</button>
+      </div>
+    </nav>}
+    {selected && <dialog ref={dialogRef} className="order-detail" aria-labelledby="order-detail-title"
+      onCancel={event => { event.preventDefault(); setSelected(null); }}
+      onClick={event => {
+        if (event.target !== event.currentTarget) return;
+        const bounds = event.currentTarget.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) setSelected(null);
+      }}>
+      <header><h2 id="order-detail-title">Pedido #{selected.number}</h2><button type="button" autoFocus onClick={() => setSelected(null)}>Fechar detalhes</button></header>
+      <p>Data do pedido: {dateLabel(selected.orderDate)} · Cadastro: {selected.createdAt ? new Date(selected.createdAt).toLocaleString("pt-BR", {timeZone:"America/Sao_Paulo"}) : "Sem informação"}</p>
+      <dl className="order-summary">
+        <div><dt>Cliente</dt><dd>{selected.customerName || "Sem informação"}</dd></div>
+        <div><dt>Ecommerce</dt><dd>{selected.ecommerceName || "Sem informação"}</dd></div>
+        <div><dt>Status</dt><dd>{selected.statusDescription || selected.statusCode || "Sem informação"}</dd></div>
+        <div><dt>ID Tiny</dt><dd>{selected.olistOrderId || "Sem informação"}</dd></div>
+        <div><dt>Total</dt><dd>{money(parse(selected.financialDetails).total ?? parse(selected.orderDetails).valorTotalPedido)}</dd></div>
+        <div><dt>Valor real</dt><dd>{money(selected.realValue)}</dd></div>
+      </dl>
       <h3>Dados completos do pedido</h3><Fields value={parse(selected.orderDetails)} />
-      <h3>Composi??o do valor real</h3><Fields value={parse(selected.financialDetails)} />
-      <h3>Notifica??o recebida</h3><Fields value={parse(selected.rawPayload)} />
-    </section>}
+      <h3>Composição do valor real</h3><Fields value={parse(selected.financialDetails)} />
+      <h3>Notificação recebida</h3><Fields value={parse(selected.rawPayload)} />
+    </dialog>}
   </main></div>;
 }
