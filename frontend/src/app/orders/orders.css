@@ -12,3 +12,5 @@
 .orders-page-controls{flex-wrap:wrap;justify-content:center}
 .order-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;padding:20px;background:rgba(16,185,129,.06);border-radius:12px}
 .order-summary dt{color:var(--text-muted);font-size:.85rem}.order-summary dd{margin:6px 0 0;font-weight:600}
+
+.order-amounts{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0 24px}.order-amounts>div{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid #334155}.order-amounts dt{color:var(--text-muted)}.order-amounts dd{margin:0;white-space:nowrap}.order-amounts>div:last-child{font-weight:700;color:#6ee7b7}.order-pending{padding:16px;border:1px solid #a16207;border-radius:8px;background:rgba(161,98,7,.12)}.order-detail .orders-table td:first-child{white-space:normal;min-width:180px}.order-detail>header{position:sticky;top:-24px;background:#111827;padding:12px 0;z-index:1}

@@ -15,12 +15,43 @@ function parse(value) {
   if (value && typeof value === "object") return value;
   try { return JSON.parse(value) || {}; } catch { return {}; }
 }
-function Fields({ value }) {
-  if (value == null) return <span>Sem informação</span>;
-  if (typeof value !== "object") return <span>{String(value)}</span>;
-  if (!Object.keys(value).length) return <span>Sem informação</span>;
-  return <dl className="order-fields">{Object.entries(value).map(([key, child]) =>
-    <div key={key}><dt>{key}</dt><dd><Fields value={child} /></dd></div>)}</dl>;
+function OrderDetails({ order }) {
+  const details = parse(order.orderDetails);
+  const financial = parse(order.financialDetails);
+  const items = Array.isArray(details.itens) ? details.itens : [];
+  const amounts = [
+    ["Total dos produtos", details.valorTotalProdutos],
+    ["Desconto", details.valorDesconto],
+    ["Frete", details.valorFrete],
+    ["Outras despesas", details.valorOutrasDespesas],
+    ["Total do pedido", financial.total ?? details.valorTotalPedido],
+    ["Custo dos produtos", financial.custoProdutos],
+    ["Taxa percentual do ecommerce", financial.taxaPercentual],
+    ["Taxa fixa do ecommerce", financial.taxaFixa],
+    ["Imposto sobre a venda", financial.impostoVenda],
+    ["Frete excluído do cálculo", financial.freteExcluido],
+    ["Valor real", order.realValue],
+  ];
+  return <>
+    <section aria-labelledby="order-items-title">
+      <h3 id="order-items-title">Produtos do pedido</h3>
+      {items.length ? <div className="orders-table"><table>
+        <thead><tr>{["Produto", "SKU", "Quantidade", "Valor unitário", "Subtotal"].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
+        <tbody>{items.map((item, index) => <tr key={index}>
+          <td>{item.produto?.descricao || "Produto sem descrição"}{item.infoAdicional && <small>{item.infoAdicional}</small>}</td>
+          <td>{item.produto?.sku || "—"}</td>
+          <td>{item.quantidade ?? "—"}</td>
+          <td>{money(item.valorUnitario)}</td>
+          <td>{money(item.quantidade != null && item.valorUnitario != null ? Number(item.quantidade) * Number(item.valorUnitario) : null)}</td>
+        </tr>)}</tbody>
+      </table></div> : <p>Os produtos deste pedido ainda não estão disponíveis.</p>}
+    </section>
+    <section aria-labelledby="order-values-title">
+      <h3 id="order-values-title">Resumo financeiro</h3>
+      <dl className="order-amounts">{amounts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{money(value)}</dd></div>)}</dl>
+      {financial.pendencia && <p className="order-pending" role="status"><strong>Valor real pendente: </strong>{financial.pendencia}</p>}
+    </section>
+  </>;
 }
 
 export default function OrdersPage() {
@@ -37,7 +68,7 @@ export default function OrdersPage() {
   const [dateType, setDateType] = useState("orderDate");
   const [selected, setSelected] = useState(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const pageSize = 15;
   const dialogRef = useRef(null);
 
   useEffect(() => { setPage(1); }, [search, status, start, end, dateType, pageSize]);
@@ -178,9 +209,7 @@ export default function OrdersPage() {
     </>}
     {!loading && count > 0 && <nav className="orders-pagination glass" aria-label="Paginação de pedidos">
       <p role="status">Mostrando {offset + 1}–{Math.min(offset + pageSize, count)} de {count} pedidos</p>
-      <label>Pedidos por página<select value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
-        {[10, 20, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}
-      </select></label>
+      <span>15 pedidos por página</span>
       <div className="orders-page-controls">
         <button type="button" disabled={currentPage === 1} onClick={() => setPage(1)} aria-label="Primeira página">Primeira</button>
         <button type="button" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Anterior</button>
@@ -206,9 +235,7 @@ export default function OrdersPage() {
         <div><dt>Total</dt><dd>{money(parse(selected.financialDetails).total ?? parse(selected.orderDetails).valorTotalPedido)}</dd></div>
         <div><dt>Valor real</dt><dd>{money(selected.realValue)}</dd></div>
       </dl>
-      <h3>Dados completos do pedido</h3><Fields value={parse(selected.orderDetails)} />
-      <h3>Composição do valor real</h3><Fields value={parse(selected.financialDetails)} />
-      <h3>Notificação recebida</h3><Fields value={parse(selected.rawPayload)} />
+      <OrderDetails order={selected} />
     </dialog>}
   </main></div>;
 }
