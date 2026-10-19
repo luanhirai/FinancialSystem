@@ -27,7 +27,14 @@ public class UserService {
     }
 
     public User register(User user) {
-        if (repository.findByEmail(user.getEmail()).isPresent()) {
+        if (user.getPassword() == null || user.getPassword().length() < 8
+                || user.getPassword().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "A senha deve ter pelo menos 8 caracteres e no máximo 72 bytes.");
+        }
+        user.setId(null);
+        user.setEmail(user.getEmail().trim().toLowerCase(java.util.Locale.ROOT));
+        if (repository.findByEmailIgnoreCase(user.getEmail()).isPresent()) {
             throw new RuntimeException("Email já cadastrado.");
         }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
@@ -72,7 +79,7 @@ public class UserService {
         User user = authenticatedUserService.getLoggedUser();
         String normalizedEmail = email.trim();
 
-        repository.findByEmail(normalizedEmail)
+        repository.findByEmailIgnoreCase(normalizedEmail)
                 .filter(existingUser -> !existingUser.getId().equals(user.getId()))
                 .ifPresent(existingUser -> {
                     throw new IllegalArgumentException("Email ja cadastrado.");
@@ -115,7 +122,7 @@ public class UserService {
     }
 
     public Optional<User> findByEmail(String email) {
-        return repository.findByEmail(email);
+        return email == null ? Optional.empty() : repository.findByEmailIgnoreCase(email.trim());
     }
 
     public String getDecryptedClientSecret(User user) {

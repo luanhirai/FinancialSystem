@@ -17,11 +17,16 @@ import java.util.List;
 public class OlistSalesWebhookController {
     private final OlistSalesWebhookService service;
     private final String webhookSecret;
+    private final com.luan.FinancialSystem.service.OlistClient client;
+    private final com.luan.FinancialSystem.repository.UserRepository users;
 
     public OlistSalesWebhookController(OlistSalesWebhookService service,
-            @Value("${olist.webhook.secret:}") String webhookSecret) {
+            @Value("${olist.webhook.secret:}") String webhookSecret,
+            com.luan.FinancialSystem.service.OlistClient client,
+            com.luan.FinancialSystem.repository.UserRepository users) {
         this.service = service;
         this.webhookSecret = webhookSecret;
+        this.client = client; this.users = users;
     }
 
     @PostMapping("/webhook")
@@ -29,7 +34,12 @@ public class OlistSalesWebhookController {
             @RequestHeader(value = "X-Webhook-Secret", required = false) String suppliedSecret,
             @RequestBody tools.jackson.databind.JsonNode payload) {
         if (!authorized(suppliedSecret)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        return ResponseEntity.ok(service.receive(new tools.jackson.databind.ObjectMapper().treeToValue(payload, OlistSalesWebhookRequest.class), payload.toString()));
+        String clientId = payload.path("clientId").asText("");
+        long id = payload.path("dados").path("id").asLong(0);
+        if (clientId.isBlank() || id <= 0) throw new IllegalArgumentException("Notificação inválida.");
+        var user = users.findByClientId(clientId).orElseThrow(() -> new IllegalArgumentException("Conta não encontrada."));
+        // Notifications are hints, never authoritative data: verify using this account's Olist credentials.
+        return ResponseEntity.ok(service.importFromApi(user.getId(), client.obterPedidoCompleto(id, user.getId())));
     }
 
     @GetMapping("/pedidos")
@@ -49,7 +59,7 @@ public class OlistSalesWebhookController {
     }
 
     private boolean authorized(String suppliedSecret) {
-        if (webhookSecret == null || webhookSecret.isBlank()) return true;
+        if (webhookSecret == null || webhookSecret.isBlank()) return false;
         return suppliedSecret != null && MessageDigest.isEqual(
                 webhookSecret.getBytes(StandardCharsets.UTF_8), suppliedSecret.getBytes(StandardCharsets.UTF_8));
     }

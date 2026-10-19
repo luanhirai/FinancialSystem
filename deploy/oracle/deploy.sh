@@ -12,6 +12,7 @@ fi
 sudo docker compose config --quiet
 # Fail before touching running containers if the new code does not build.
 sudo docker compose --parallel 1 build
+sudo docker compose run --rm --no-deps caddy caddy validate --config /etc/caddy/Caddyfile
 # Save database before application changes. Keep backups outside release folders.
 backup_dir="$HOME/financial-backups"
 mkdir -p "$backup_dir"

@@ -56,7 +56,7 @@ class PasswordResetServiceTests {
     }
     @Test void consumesTokenAndEncodesPassword() {
         String raw = "a".repeat(43);
-        var reset = new PasswordResetToken(); reset.setUser(user);
+        var reset = new PasswordResetToken(); reset.setUser(user); reset.setAccountEmail(user.getEmail());
         reset.setTokenHash(PasswordResetService.hash(raw)); reset.setExpiresAt(Instant.now().plusSeconds(100));
         when(tokens.findForUpdate(PasswordResetService.hash(raw))).thenAnswer(invocation ->
                 reset.getTokenHash() == null ? Optional.empty() : Optional.of(reset));

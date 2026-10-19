@@ -1,3 +1,6 @@
+**/application-mail-local.properties
+.env
+.env.*
 target
 .mvn
 .idea

@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product,Long> {
+    Optional<Product> findByIdAndEcommerceUserId(Long id, Long userId);
+    boolean existsByEcommerceId(Long ecommerceId);
     @Query("SELECT p FROM Product p JOIN p.ecommerce e JOIN e.user u WHERE u.id = :userId")
     List<Product> findProductsByUser(@Param("userId") Long userId);
 

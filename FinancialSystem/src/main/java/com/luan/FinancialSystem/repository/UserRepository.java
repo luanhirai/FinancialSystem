@@ -11,6 +11,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("select u from User u where u.client_id is not null and u.olist_access_token is not null")
     java.util.List<User> findOlistConnectedUsers();
     Optional<User> findByEmail(String email);
+    Optional<User> findByEmailIgnoreCase(String email);
 
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from User u where lower(u.email) = lower(:email)")

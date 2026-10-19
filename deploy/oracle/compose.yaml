@@ -39,6 +39,14 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Execute init-env.sh}
       APP_ENCRYPTION_SECRET: ${APP_ENCRYPTION_SECRET:?Execute init-env.sh}
       OLIST_WEBHOOK_SECRET: ${OLIST_WEBHOOK_SECRET:?Execute init-env.sh}
+      APP_FRONTEND_URL: https://${APP_DOMAIN:?Execute init-env.sh}
+      APP_AUTH_SECURE_COOKIE: "true"
+      APP_SECURITY_TRUST_PROXY: "true"
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: "587"
+      MAIL_USERNAME: ${MAIL_USERNAME:finsysmavie@gmail.com}
+      MAIL_FROM: ${MAIL_USERNAME:finsysmavie@gmail.com}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:?Configure a senha de app no .env de producao}
       JAVA_TOOL_OPTIONS: -Xms256m -Xmx1536m
     logging: *logging
   frontend:

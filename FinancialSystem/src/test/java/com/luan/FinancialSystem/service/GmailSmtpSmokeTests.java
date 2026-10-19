@@ -15,7 +15,7 @@ class GmailSmtpSmokeTests {
         var environment = new StandardEnvironment();
         environment.getPropertySources().addLast(new PropertiesPropertySource("app",
                 PropertiesLoaderUtils.loadProperties(new ClassPathResource("application.properties"))));
-        var local = new ClassPathResource("application-mail-local.properties");
+        var local = new org.springframework.core.io.FileSystemResource("src/main/resources/application-mail-local.properties");
         if (local.exists()) environment.getPropertySources().addFirst(new PropertiesPropertySource("local",
                 PropertiesLoaderUtils.loadProperties(local)));
         var sender = new JavaMailSenderImpl();
@@ -26,6 +26,7 @@ class GmailSmtpSmokeTests {
         assertThat(sender.getPassword()).as("Gmail app password configured").isNotBlank();
         var properties = sender.getJavaMailProperties();
         properties.setProperty("mail.smtp.auth", "true");
+        properties.setProperty("mail.smtp.ssl.checkserveridentity", "true");
         properties.setProperty("mail.smtp.starttls.enable", "true");
         properties.setProperty("mail.smtp.starttls.required", "true");
         properties.setProperty("mail.smtp.connectiontimeout", "10000");

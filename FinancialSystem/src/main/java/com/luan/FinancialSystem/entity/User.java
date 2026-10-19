@@ -40,12 +40,15 @@ public class User implements UserDetails {
     private String client_id;
 
     @Column(length = 1024)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String client_secret;
 
     @Column(columnDefinition = "TEXT")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String olist_access_token;
 
     @Column(columnDefinition = "TEXT")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String olist_refresh_token;
 
     @Column
@@ -67,6 +70,7 @@ public class User implements UserDetails {
     }
 
     @Override
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
     public String getPassword() {
         return password;
     }

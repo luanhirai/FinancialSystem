@@ -163,15 +163,12 @@ public class OlistImportService {
 
         // Algumas contas nao enviam tipoEstoque. Nesses casos, consulta a API
         // para nao confundir saldo fisico com o total realmente disponivel.
-        Double quantidadeDisponivel = saldo;
-        if (!"D".equalsIgnoreCase(tipoEstoque)) {
-            var estoqueAtual = olistClient.obterEstoque(idProduto, user.getId());
-            if (estoqueAtual != null) {
-                quantidadeDisponivel = estoqueAtual.disponivel() != null
-                        ? estoqueAtual.disponivel()
-                        : estoqueAtual.saldo();
-            }
+        var estoqueAtual = olistClient.obterEstoque(idProduto, user.getId());
+        if (estoqueAtual == null || (estoqueAtual.disponivel() == null && estoqueAtual.saldo() == null)) {
+            throw new IllegalStateException("Não foi possível confirmar o estoque na Olist.");
         }
+        Double quantidadeDisponivel = estoqueAtual.disponivel() != null
+                ? estoqueAtual.disponivel() : estoqueAtual.saldo();
 
         product.setQuantity(toInteger(quantidadeDisponivel));
         productRepository.save(product);

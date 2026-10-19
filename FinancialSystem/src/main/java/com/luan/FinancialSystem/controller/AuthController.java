@@ -27,6 +27,9 @@ import java.util.Map;
 public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
+    @org.springframework.beans.factory.annotation.Value("${app.auth.secure-cookie:false}")
+    private boolean secureCookie;
+    private final String dummyPasswordHash;
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -40,13 +43,14 @@ public class AuthController {
                           OlistAuthService olistAuthService) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
+        this.dummyPasswordHash = passwordEncoder.encode("invalid-account-placeholder");
         this.jwtService = jwtService;
         this.tokenBlacklistService = tokenBlacklistService;
         this.olistAuthService = olistAuthService;
     }
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody User user) {
+    public ResponseEntity<String> register(@jakarta.validation.Valid @RequestBody User user) {
         if (user.getName() == null || user.getName().isBlank()) {
             return ResponseEntity.badRequest().body("Nome é obrigatório.");
         }
@@ -67,10 +71,13 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody User req, HttpServletResponse response) {
 
-        User user = userService.findByEmail(req.getEmail())
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-
-        if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
+        if (req.getPassword() == null || req.getPassword().isBlank()
+                || req.getPassword().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
+            return ResponseEntity.status(401).body("Credenciais inválidas");
+        }
+        User user = userService.findByEmail(req.getEmail()).orElse(null);
+        boolean passwordMatches = passwordEncoder.matches(req.getPassword(), user == null ? dummyPasswordHash : user.getPassword());
+        if (user == null || !passwordMatches) {
             return ResponseEntity.status(401).body("Credenciais inválidas");
         }
 
@@ -81,13 +88,13 @@ public class AuthController {
                 .path("/")
                 .maxAge(Duration.ofDays(1))
                 .sameSite("Lax")
+                .secure(secureCookie)
                 .build();
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(Map.of(
                         "message", "Login realizado com sucesso",
-                        "token", token,
                         "cookieName", "token"
                 ));
     }
@@ -115,6 +122,7 @@ public class AuthController {
                 .path("/")
                 .maxAge(0)
                 .sameSite("Lax")
+                .secure(secureCookie)
                 .build();
 
         return ResponseEntity.ok()
@@ -136,16 +144,7 @@ public class AuthController {
 
     @PutMapping("/me")
     public ResponseEntity<?> updateMe(@RequestBody ProfileRequest request) {
-        System.out.println("============================================================");
-        System.out.println("[BACKEND PERFIL/OLIST] PUT /auth/me recebido.");
-        System.out.println("[BACKEND PERFIL/OLIST] Etapa 1: frontend pediu para salvar perfil/credenciais antes de conectar Olist.");
-        System.out.println("[BACKEND PERFIL/OLIST] Nome informado? " + (request.name() != null && !request.name().isBlank()));
-        System.out.println("[BACKEND PERFIL/OLIST] Email informado? " + (request.email() != null && !request.email().isBlank()));
-        System.out.println("[BACKEND PERFIL/OLIST] Telefone informado? " + (request.phone() != null && !request.phone().isBlank()));
-        System.out.println("[BACKEND PERFIL/OLIST] Client ID informado? " + (request.clientId() != null && !request.clientId().isBlank()));
-        System.out.println("[BACKEND PERFIL/OLIST] Client Secret novo informado? " + (request.clientSecret() != null && !request.clientSecret().isBlank()));
         try {
-            System.out.println("[BACKEND PERFIL/OLIST] Etapa 2: chamando UserService.updateProfile...");
             User user = userService.updateProfile(
                     request.name(),
                     request.email(),
@@ -153,18 +152,15 @@ public class AuthController {
                     request.clientId(),
                     request.clientSecret()
             );
-            System.out.println("[BACKEND PERFIL/OLIST] SUCESSO: perfil/credenciais salvos no banco.");
-            System.out.println("[BACKEND PERFIL/OLIST] Usuario ID: " + user.getId());
-            System.out.println("[BACKEND PERFIL/OLIST] Client ID salvo: " + maskClientId(user.getClient_id()));
-            System.out.println("[BACKEND PERFIL/OLIST] Possui client_secret salvo? " + (user.getClient_secret() != null && !user.getClient_secret().isBlank()));
-            System.out.println("============================================================");
             return ResponseEntity.ok(profileResponse(user));
         } catch (IllegalArgumentException exception) {
-            System.out.println("[BACKEND PERFIL/OLIST] ERRO: nao foi possivel salvar perfil/credenciais.");
-            System.out.println("[BACKEND PERFIL/OLIST] Motivo: " + exception.getMessage());
-            System.out.println("============================================================");
             return ResponseEntity.badRequest().body(exception.getMessage());
         }
+    }
+
+    @PostMapping("/olist-authorize")
+    public ResponseEntity<?> olistAuthorize() {
+        return ResponseEntity.ok().header("Cache-Control", "no-store").body(olistAuthService.authorizationUrl());
     }
 
     @GetMapping("/olist-client")
@@ -193,49 +189,24 @@ public class AuthController {
 
     @PostMapping("/olist-token/callback")
     public ResponseEntity<?> generateOlistTokenFromCallback(@RequestBody OlistCallbackTokenRequest request) {
-        System.out.println("============================================================");
-        System.out.println("[BACKEND OLIST CALLBACK] POST /auth/olist-token/callback recebido.");
-        System.out.println("[BACKEND OLIST CALLBACK] Etapa 1: webhook chamou o backend para trocar CODE por TOKEN.");
-        System.out.println("[BACKEND OLIST CALLBACK] Client ID recebido: " + maskClientId(request.clientId()));
-        System.out.println("[BACKEND OLIST CALLBACK] Code recebido? " + (request.code() != null && !request.code().isBlank()));
-        System.out.println("[BACKEND OLIST CALLBACK] Prefixo do code: " + maskSecret(request.code()));
         try {
             logger.info("[Olist/Tiny] Webhook chamou backend para trocar code. clientId={}, hasCode={}",
                     maskClientId(request.clientId()),
                     request.code() != null && !request.code().isBlank());
-            System.out.println("[BACKEND OLIST CALLBACK] Etapa 2: chamando OlistAuthService.generateTokenFromWebhook...");
             ResponseEntity<?> response = ResponseEntity.ok(olistAuthService.generateTokenFromWebhook(request.code(), request.clientId()));
             logger.info("[Olist/Tiny] Backend finalizou troca do code chamada pelo webhook. clientId={}",
                     maskClientId(request.clientId()));
-            System.out.println("[BACKEND OLIST CALLBACK] SUCESSO: service terminou sem erro.");
-            System.out.println("[BACKEND OLIST CALLBACK] SUCESSO: token/refresh_token foram processados e salvos pelo service.");
-            System.out.println("[BACKEND OLIST CALLBACK] Retornando HTTP 200 para o webhook.");
-            System.out.println("============================================================");
             return response;
         } catch (IllegalArgumentException | IllegalStateException exception) {
             logger.warn("[Olist/Tiny] Falha ao trocar code chamado pelo webhook: {}", exception.getMessage());
-            System.out.println("[BACKEND OLIST CALLBACK] ERRO: falha ao trocar code por token.");
-            System.out.println("[BACKEND OLIST CALLBACK] Motivo: " + exception.getMessage());
-            System.out.println("[BACKEND OLIST CALLBACK] Retornando HTTP 400 para o webhook.");
-            System.out.println("============================================================");
             return ResponseEntity.badRequest().body(exception.getMessage());
         } catch (RestClientResponseException exception) {
             logger.warn("[Olist/Tiny] Tiny recusou a troca do code. status={}, body={}",
                     exception.getStatusCode(),
-                    exception.getResponseBodyAsString());
-            System.out.println("[BACKEND OLIST CALLBACK] ERRO: Tiny recusou a troca do code.");
-            System.out.println("[BACKEND OLIST CALLBACK] HTTP Tiny: " + exception.getStatusCode());
-            System.out.println("[BACKEND OLIST CALLBACK] Body Tiny: " + exception.getResponseBodyAsString());
-            System.out.println("[BACKEND OLIST CALLBACK] Retornando HTTP 400 para o webhook.");
-            System.out.println("============================================================");
-            return ResponseEntity.badRequest().body("Tiny recusou a troca do code: " + exception.getResponseBodyAsString());
+                    "[provider response redacted]");
+            return ResponseEntity.badRequest().body("Tiny recusou a troca do code: " + "[provider response redacted]");
         } catch (RuntimeException exception) {
-            logger.error("[Olist/Tiny] Erro inesperado ao trocar code chamado pelo webhook.", exception);
-            System.out.println("[BACKEND OLIST CALLBACK] ERRO INESPERADO ao trocar code por token.");
-            System.out.println("[BACKEND OLIST CALLBACK] Classe: " + exception.getClass().getName());
-            System.out.println("[BACKEND OLIST CALLBACK] Mensagem: " + exception.getMessage());
-            System.out.println("[BACKEND OLIST CALLBACK] Retornando HTTP 500 para o webhook.");
-            System.out.println("============================================================");
+            logger.error("[Olist/Tiny] Erro inesperado ao trocar code chamado pelo webhook.");
             return ResponseEntity.internalServerError().body("Erro inesperado ao trocar code por token: " + exception.getMessage());
         }
     }

@@ -31,6 +31,13 @@ public class JwtFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return java.util.Set.of("/auth/login", "/auth/register", "/auth/forgot-password",
+                "/auth/reset-password", "/auth/olist-token/callback", "/olist/estoque/webhook",
+                "/olist/vendas/webhook").contains(request.getServletPath());
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
@@ -61,7 +68,13 @@ public class JwtFilter extends OncePerRequestFilter {
 
             if (jwtService.isValid(token)) {
                 Long userId = jwtService.extractUserId(token);
-                UserDetails user = userDetailsService.loadUserById(userId);
+                UserDetails user;
+                try { user = userDetailsService.loadUserById(userId); }
+                catch (RuntimeException exception) { chain.doFilter(request, response); return; }
+                if (!(user instanceof com.luan.FinancialSystem.entity.User account)
+                        || !jwtService.isValidForUser(token, account)) {
+                    chain.doFilter(request, response); return;
+                }
 
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());

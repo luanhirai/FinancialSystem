@@ -12,12 +12,15 @@ import java.util.Map;
 @RequestMapping("/auth")
 public class PasswordResetController {
     private final PasswordResetService service;
-    public PasswordResetController(PasswordResetService service) { this.service = service; }
+    private final com.luan.FinancialSystem.service.PasswordResetDeliveryService delivery;
+    public PasswordResetController(PasswordResetService service, com.luan.FinancialSystem.service.PasswordResetDeliveryService delivery) {
+        this.service = service; this.delivery = delivery;
+    }
 
     @PostMapping("/forgot-password")
     public ResponseEntity<?> forgot(@Valid @RequestBody ForgotRequest request) {
         try {
-            service.request(request.email());
+            delivery.submit(request.email());
             return ResponseEntity.ok().header("Cache-Control", "no-store")
                     .body(Map.of("message", "Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha. Verifique também o spam."));
         } catch (ResponseStatusException exception) {

@@ -39,6 +39,15 @@ public class PasswordResetService {
         this.frontendUrl = frontendUrl.replaceAll("/+$", "");
     }
 
+    public void checkMailConfiguration() {
+        JavaMailSender sender = mailProvider.getIfAvailable();
+        if (sender == null || from.isBlank()
+                || (sender instanceof org.springframework.mail.javamail.JavaMailSenderImpl smtp
+                    && (smtp.getPassword() == null || smtp.getPassword().isBlank()))) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Envio de e-mail indisponível.");
+        }
+    }
+
     @Transactional
     public void request(String email) {
         JavaMailSender sender = mailProvider.getIfAvailable();
@@ -55,6 +64,7 @@ public class PasswordResetService {
         random.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         reset.setUser(user.get());
+        reset.setAccountEmail(user.get().getEmail());
         reset.setTokenHash(hash(token));
         reset.setRequestedAt(now);
         reset.setExpiresAt(now.plusSeconds(1800));
@@ -86,6 +96,7 @@ public class PasswordResetService {
         }
         var reset = tokens.findForUpdate(hash(token)).orElseThrow(this::invalidToken);
         if (reset.getExpiresAt() == null || !reset.getExpiresAt().isAfter(Instant.now())) throw invalidToken();
+        if (!reset.getUser().getEmail().equals(reset.getAccountEmail())) throw invalidToken();
         reset.getUser().setPassword(encoder.encode(password));
         users.save(reset.getUser());
         reset.setTokenHash(null);

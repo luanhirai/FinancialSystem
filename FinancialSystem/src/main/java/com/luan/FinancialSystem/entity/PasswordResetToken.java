@@ -18,6 +18,7 @@ public class PasswordResetToken {
     private User user;
     @Column(unique = true, length = 64)
     private String tokenHash;
+    private String accountEmail;
     private Instant expiresAt;
     private Instant requestedAt;
 }

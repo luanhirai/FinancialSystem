@@ -160,21 +160,13 @@ export default function ProfilePage() {
       await saveProfileData();
       console.log("[Olist/Tiny] Credenciais salvas, montando URL de autorizacao");
 
-      const params = new URLSearchParams({
-        response_type: "code",
-        client_id: form.clientId.trim(),
-        redirect_uri: "http://webhook.casalamavievendas.com.br/",
-        state: form.clientId.trim(),
-      });
-
-      const authorizationUrl = `https://accounts.tiny.com.br/realms/tiny/protocol/openid-connect/auth?${params.toString()}`;
-      console.log("[Olist/Tiny] Abrindo autorizacao em nova aba", {
-        authHost: "accounts.tiny.com.br",
-        redirectUri: "http://webhook.casalamavievendas.com.br/",
-        state: maskValue(form.clientId, 12),
-      });
-
-      authorizationWindow.location.href = authorizationUrl;
+      const response = await authFetch("/auth/olist-authorize", { method: "POST" });
+      if (!response.ok) throw new Error("Não foi possível preparar a autorização.");
+      const { authorizationUrl } = await response.json();
+      const target = new URL(authorizationUrl);
+      if (target.protocol !== "https:" || target.hostname !== "accounts.tiny.com.br")
+        throw new Error("Endereço de autorização inválido.");
+      authorizationWindow.location.href = target.href;
     } catch (err) {
       console.error("Erro ao conectar com Olist/Tiny:", err);
       authorizationWindow.close();

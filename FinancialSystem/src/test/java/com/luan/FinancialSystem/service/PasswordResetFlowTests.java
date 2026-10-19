@@ -34,7 +34,7 @@ class PasswordResetFlowTests {
     final HttpClient client = HttpClient.newHttpClient();
     String email;
     Long userId;
-    String sentText;
+    volatile String sentText;
 
     @BeforeEach void setup() {
         email = "reset-" + UUID.randomUUID() + "@example.com";
@@ -62,7 +62,11 @@ class PasswordResetFlowTests {
     HttpResponse<String> forgot(String address) throws Exception {
         return post("/auth/forgot-password", "{\"email\":\"" + address + "\"}");
     }
-    String token() {
+    String token() throws Exception {
+        for (int attempt = 0; attempt < 200; attempt++) {
+            if (sentText != null && tokens.findById(userId).isPresent()) break;
+            Thread.sleep(25);
+        }
         assertThat(sentText).contains("/redefinir-senha#token=");
         return sentText.split("#token=")[1].split("\\n")[0];
     }
@@ -90,19 +94,23 @@ class PasswordResetFlowTests {
         assertThat(unknown.body()).isEqualTo(known.body());
         assertThat(post("/auth/forgot-password", "{\"email\":\"invalid\"}").statusCode()).isEqualTo(400);
         assertThat(post("/auth/reset-password", "{\"token\":\"invalid\",\"password\":\"short\"}").statusCode()).isEqualTo(400);
-        verify(mail, times(1)).send(any(SimpleMailMessage.class));
+        verify(mail, timeout(5000).times(1)).send(any(SimpleMailMessage.class));
     }
 
     @Test void throttlesAndInvalidatesPreviousLinkAfterNewRequest() throws Exception {
         forgot(email);
         String first = token();
         forgot(email);
-        verify(mail, times(1)).send(any(SimpleMailMessage.class));
+        verify(mail, timeout(5000).times(1)).send(any(SimpleMailMessage.class));
         var stored = tokens.findById(userId).orElseThrow();
         stored.setRequestedAt(Instant.now().minusSeconds(61));
         tokens.saveAndFlush(stored);
         assertThat(forgot(email).statusCode()).isEqualTo(200);
-        String second = token();
+        String second = first;
+        for (int attempt = 0; attempt < 200 && second.equals(first); attempt++) {
+            Thread.sleep(25);
+            second = token();
+        }
         assertThat(second).isNotEqualTo(first);
         assertThat(reset(first, "new-password").statusCode()).isEqualTo(400);
         assertThat(reset(second, "new-password").statusCode()).isEqualTo(200);
@@ -121,7 +129,8 @@ class PasswordResetFlowTests {
 
     @Test void failedSmtpSendRollsBackTokenAndAllowsRetry() throws Exception {
         doThrow(new MailSendException("SMTP unavailable")).when(mail).send(any(SimpleMailMessage.class));
-        assertThat(forgot(email).statusCode()).isEqualTo(503);
+        assertThat(forgot(email).statusCode()).isEqualTo(200);
+        verify(mail, timeout(5000)).send(any(SimpleMailMessage.class));
         assertThat(tokens.findById(userId)).isEmpty();
         doAnswer(invocation -> {
             sentText = ((SimpleMailMessage) invocation.getArgument(0)).getText();

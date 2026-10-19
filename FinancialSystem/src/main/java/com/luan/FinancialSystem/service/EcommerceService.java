@@ -29,6 +29,7 @@ public class EcommerceService {
 
     public Ecommerce create(Ecommerce ecommerce) {
         User user = authenticatedUserService.getLoggedUser();
+        ecommerce.setId(null);
         ecommerce.setUser(user);
         return ecommerceRepository.save(ecommerce);
     }
@@ -40,8 +41,8 @@ public class EcommerceService {
     }
 
     public Ecommerce update(Long id, Ecommerce updated) {
-        Ecommerce ecommerce = ecommerceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Ecommerce não encontrado"));
+        Ecommerce ecommerce = ecommerceRepository.findByIdAndUserId(id, authenticatedUserService.getLoggedUser().getId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Ecommerce não encontrado"));
 
         ecommerce.setName(updated.getName());
         ecommerce.setRate(updated.getRate());
@@ -51,10 +52,10 @@ public class EcommerceService {
     }
 
     public Ecommerce delete(Long id) {
-        Ecommerce ecommerce = ecommerceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Ecommerce não encontrado"));
+        Ecommerce ecommerce = ecommerceRepository.findByIdAndUserId(id, authenticatedUserService.getLoggedUser().getId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Ecommerce não encontrado"));
 
-        boolean hasProducts = !productRepository.findProductsByUser(id).isEmpty();
+        boolean hasProducts = productRepository.existsByEcommerceId(id);
         if (hasProducts) {
             throw new RuntimeException(
                     "Não é possível deletar: existem produtos vinculados a este ecommerce."

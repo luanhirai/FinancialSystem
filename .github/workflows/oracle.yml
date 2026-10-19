@@ -45,6 +45,8 @@ jobs:
           NEXT_TELEMETRY_DISABLED: '1'
         run: |
           npm ci
+          npm audit --audit-level=moderate
+          node --test tests/*.test.mjs
           npm run build
       - name: Check deployment script
         run: bash -n deploy/oracle/deploy.sh

@@ -23,6 +23,8 @@ public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final String allowedOrigins;
+    @Value("${olist.webhook.secret:}") private String webhookSecret;
+    @Value("${app.security.trust-proxy:false}") private boolean trustProxy;
 
     public SecurityConfig(JwtFilter jwtFilter,
                           @Value("${app.cors.allowed-origins}") String allowedOrigins) {
@@ -36,6 +38,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/login", "/auth/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/forgot-password", "/auth/reset-password").permitAll()
@@ -47,6 +50,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)  // ← sem sessão
                 )
+                .addFilterBefore(new RequestSecurityFilter(allowedOrigins, webhookSecret, trustProxy), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)  // ← JWT
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable());  // ← desativa httpBasic

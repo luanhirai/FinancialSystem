@@ -17,9 +17,11 @@ const TINY_AUTH_URL =
   "https://accounts.tiny.com.br/realms/tiny/protocol/openid-connect/auth";
 
 function configurarCors(res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'");
 }
 
 function montarUrlLogin(clientId = TINY_CLIENT_ID) {
@@ -57,51 +59,14 @@ function normalizarCallback({ code, state, clientId, error, errorDescription, pa
 }
 
 function paginaCallback(callback) {
-  const sucesso = callback.code && !callback.error;
-  const tokenGerado = sucesso && callback.backend?.success;
-  const titulo = tokenGerado ? "Conta conectada" : sucesso ? "Code capturado" : "Erro no callback";
-  const detalhe = tokenGerado
-    ? "O code foi recebido pelo webhook e enviado para o backend."
-    : sucesso
-    ? callback.backend?.message || "O code foi recebido pelo webhook, mas o backend nao confirmou a troca do token."
-    : callback.errorDescription || callback.error || "O Tiny retornou um erro.";
-
-  return `<!doctype html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>${titulo}</title>
-    <style>
-      body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: Arial, sans-serif; background: #f6f7f9; color: #1f2937; }
-      main { width: min(760px, calc(100% - 32px)); background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; }
-      code { overflow-wrap: anywhere; background: #f3f4f6; border-radius: 6px; padding: 2px 6px; }
-    </style>
-  </head>
-  <body>
-    <main>
-      <h1>${titulo}</h1>
-      <p>${detalhe}</p>
-      <p>Callback: <code>${callback.id}</code></p>
-      ${callback.code ? `<p>Code: <code>${callback.code}</code></p>` : ""}
-      ${callback.state ? `<p>Client ID: <code>${callback.state}</code></p>` : ""}
-      ${callback.backend?.backendEndpoint ? `<p>Backend chamado: <code>${callback.backend.backendEndpoint}</code></p>` : ""}
-      ${callback.backend?.status ? `<p>Status backend: <code>${callback.backend.status}</code></p>` : ""}
-      ${callback.backend?.data ? `<p>Resposta backend: <code>${typeof callback.backend.data === "string" ? callback.backend.data : JSON.stringify(callback.backend.data)}</code></p>` : ""}
-    </main>
-  </body>
-</html>`;
+  const success = Boolean(callback.code && !callback.error && callback.backend?.success);
+  return `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Conexão Olist</title><body><main><h1>${success ? "Conta conectada" : "Não foi possível conectar"}</h1><p>${success ? "Autorização concluída. Você pode fechar esta aba." : "Volte ao perfil e inicie uma nova autorização."}</p></main></body></html>`;
 }
 
 async function enviarCodeParaBackend(callback) {
   const backendEndpoint = `${BACKEND_URL}/auth/olist-token/callback`;
 
   if (!callback.code) {
-    console.warn("[Webhook Olist/Tiny] Callback sem code", {
-      callbackId: callback.id,
-      hasCode: Boolean(callback.code),
-      hasState: Boolean(callback.state),
-    });
 
     return {
       success: false,
@@ -111,10 +76,6 @@ async function enviarCodeParaBackend(callback) {
   }
 
   if (!callback.state) {
-    console.warn("[Webhook Olist/Tiny] Callback sem state/client_id mesmo apos fallback", {
-      callbackId: callback.id,
-      hasDefaultClientId: Boolean(TINY_CLIENT_ID),
-    });
 
     return {
       success: false,
@@ -123,27 +84,12 @@ async function enviarCodeParaBackend(callback) {
     };
   }
 
-  console.log("============================================================");
-  console.log("[Webhook Olist/Tiny] VOU PASSAR O CODE DO WEBHOOK PARA O BACKEND.");
-  console.log("[Webhook Olist/Tiny] O code veio da URL/corpo recebido pelo webhook.");
-  console.log("[Webhook Olist/Tiny] Se o Tiny nao enviou state, estou usando TINY_CLIENT_ID como fallback.");
-  console.log("[Webhook Olist/Tiny] Endpoint backend:", backendEndpoint);
-  console.log("[Webhook Olist/Tiny] Client ID/state:", callback.state);
-  console.log("[Webhook Olist/Tiny] Code recebido?", Boolean(callback.code));
-  console.log("[Webhook Olist/Tiny] Prefixo do code:", `${String(callback.code).slice(0, 8)}...`);
-
-  console.log("[Webhook Olist/Tiny] Enviando code para o backend", {
-    callbackId: callback.id,
-    backendEndpoint,
-    clientId: callback.state,
-    codePrefix: `${String(callback.code).slice(0, 8)}...`,
-  });
-
   const response = await fetch(backendEndpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "ngrok-skip-browser-warning": "1",
+      "X-Webhook-Secret": OLIST_WEBHOOK_SECRET,
     },
     body: JSON.stringify({
       code: callback.code,
@@ -159,15 +105,6 @@ async function enviarCodeParaBackend(callback) {
   } catch {
     data = text;
   }
-
-  console.log("[Webhook Olist/Tiny] Backend respondeu troca do code", {
-    callbackId: callback.id,
-    status: response.status,
-    ok: response.ok,
-    data,
-  });
-  console.log("[Webhook Olist/Tiny] Terminou a chamada do webhook para o backend.");
-  console.log("============================================================");
 
   return {
     success: response.ok,
@@ -186,6 +123,7 @@ async function enviarEstoqueParaBackend(payload) {
     headers: {
       "Content-Type": "application/json",
       "ngrok-skip-browser-warning": "1",
+      "X-Webhook-Secret": OLIST_WEBHOOK_SECRET,
     },
     body: JSON.stringify({
       clientId: TINY_CLIENT_ID,
@@ -207,6 +145,7 @@ async function enviarVendaParaBackend(payload) {
   const headers = {
     "Content-Type": "application/json",
     "ngrok-skip-browser-warning": "1",
+      "X-Webhook-Secret": OLIST_WEBHOOK_SECRET,
   };
   if (OLIST_WEBHOOK_SECRET) headers["X-Webhook-Secret"] = OLIST_WEBHOOK_SECRET;
 
@@ -223,11 +162,6 @@ async function enviarVendaParaBackend(payload) {
 
 export default async function handler(req, res) {
   configurarCors(res);
-  console.log("[Webhook Olist/Tiny] Requisicao recebida", {
-    method: req.method,
-    query: req.query || {},
-    hasBody: Boolean(req.body),
-  });
 
   if (req.method === "OPTIONS") {
     return res.status(204).end();
@@ -250,13 +184,6 @@ export default async function handler(req, res) {
         ...dadosCallback,
       };
 
-      console.log("[Webhook Olist/Tiny] Callback GET recebido", {
-        callbackId: callback.id,
-        hasCode: Boolean(callback.code),
-        state: callback.state,
-        error: callback.error,
-      });
-
       if (callback.code && !callback.error) {
         try {
           callback.backend = await enviarCodeParaBackend(callback);
@@ -268,22 +195,13 @@ export default async function handler(req, res) {
         }
       }
 
-      historico.callbacks.push(callback);
+      historico.callbacks.push({ id: callback.id }); if (historico.callbacks.length > 10) historico.callbacks.shift();
 
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       return res.status(callback.error || callback.backend?.success === false ? 400 : 200).send(paginaCallback(callback));
     }
 
-    return res.status(200).json({
-      success: true,
-      message: "Webhook de callback online.",
-      redirectUri: TINY_REDIRECT_URI,
-      loginUrl: montarUrlLogin(),
-      callbacksTotal: historico.callbacks.length,
-      callbacks: historico.callbacks,
-      webhooksTotal: historico.webhooks.length,
-      webhooks: historico.webhooks,
-    });
+    return res.status(200).json({ success: true, message: "Webhook online." });
   }
 
   if (req.method === "POST") {
@@ -305,18 +223,10 @@ export default async function handler(req, res) {
         ...dadosCallback,
       };
 
-      console.log("[Webhook Olist/Tiny] Callback POST recebido", {
-        callbackId: callback.id,
-        hasCode: Boolean(callback.code),
-        state: callback.state,
-        error: callback.error,
-      });
-
       if (callback.code && !callback.error) {
         try {
           callback.backend = await enviarCodeParaBackend(callback);
         } catch (requestError) {
-          console.error("[Webhook Olist/Tiny] Erro ao chamar backend", requestError);
           callback.backend = {
             success: false,
             message: requestError.message || "Erro ao enviar o code para o backend.",
@@ -324,12 +234,12 @@ export default async function handler(req, res) {
         }
       }
 
-      historico.callbacks.push(callback);
+      historico.callbacks.push({ id: callback.id }); if (historico.callbacks.length > 10) historico.callbacks.shift();
 
       return res.status(callback.error || callback.backend?.success === false ? 400 : 200).json({
         success: !callback.error && callback.backend?.success !== false,
-        message: callback.backend?.message || "Code recebido pelo webhook.",
-        callback,
+        message: callback.backend?.success ? "Conta conectada." : "Não foi possível conectar.",
+        callback: { id: callback.id },
       });
     }
 
@@ -344,11 +254,11 @@ export default async function handler(req, res) {
         evento.backend = await enviarEstoqueParaBackend(payload);
       } catch (requestError) {
         evento.backend = { success: false, message: requestError.message };
-        historico.webhooks.push(evento);
+        historico.webhooks.push({ id: evento.id }); if (historico.webhooks.length > 10) historico.webhooks.shift();
         return res.status(502).json({
           success: false,
           message: "Nao foi possivel aplicar a atualizacao de estoque.",
-          evento,
+          evento: { id: evento.id },
         });
       }
     }
@@ -358,21 +268,21 @@ export default async function handler(req, res) {
         evento.backend = await enviarVendaParaBackend(payload);
       } catch (requestError) {
         evento.backend = { success: false, message: requestError.message };
-        historico.webhooks.push(evento);
+        historico.webhooks.push({ id: evento.id }); if (historico.webhooks.length > 10) historico.webhooks.shift();
         return res.status(502).json({
           success: false,
           message: "Nao foi possivel salvar o pedido de venda.",
-          evento,
+          evento: { id: evento.id },
         });
       }
     }
 
-    historico.webhooks.push(evento);
+    historico.webhooks.push({ id: evento.id }); if (historico.webhooks.length > 10) historico.webhooks.shift();
 
     return res.status(200).json({
       success: true,
       message: "Webhook recebido.",
-      evento,
+      evento: { id: evento.id },
     });
   }
 

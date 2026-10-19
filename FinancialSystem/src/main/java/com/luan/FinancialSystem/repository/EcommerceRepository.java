@@ -7,4 +7,5 @@ import java.util.List;
 public interface EcommerceRepository extends JpaRepository<Ecommerce,Long> {
 
     List<Ecommerce> findByUserId(Long userId);
+    java.util.Optional<Ecommerce> findByIdAndUserId(Long id, Long userId);
 }
