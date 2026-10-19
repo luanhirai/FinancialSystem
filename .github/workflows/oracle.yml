@@ -48,8 +48,18 @@ jobs:
           npm audit --audit-level=moderate
           node --test tests/*.test.mjs
           npm run build
-      - name: Check deployment script
-        run: bash -n deploy/oracle/deploy.sh
+      - name: Check deployment script and Compose configuration
+        env:
+          APP_DOMAIN: app.example.com
+          MYSQL_PASSWORD: ci-placeholder-password
+          MYSQL_ROOT_PASSWORD: ci-placeholder-root-password
+          JWT_SECRET: ci-placeholder-signing-key-at-least-32-chars
+          APP_ENCRYPTION_SECRET: ci-placeholder-encryption-key-at-least-32-chars
+          OLIST_WEBHOOK_SECRET: ci-placeholder-webhook-secret
+          MAIL_PASSWORD: ci-placeholder-app-password
+        run: |
+          bash -n deploy/oracle/deploy.sh
+          docker compose -f deploy/oracle/compose.yaml config --quiet
   deploy:
     needs: ci
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.ORACLE_DEPLOY_ENABLED == 'true'
