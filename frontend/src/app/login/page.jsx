@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiUrl } from "@/lib/api";
 import "./login.css";
@@ -91,6 +92,7 @@ export default function LoginPage() {
         </form>
 
         <div className="login-footer">
+          <p><Link href="/recuperar-senha">Esqueci minha senha</Link></p>
           <p>Não tem uma conta? <span onClick={() => router.push("/register")} style={{ cursor: "pointer" }}>Registrar</span></p>
         </div>
       </div>

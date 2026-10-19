@@ -12,6 +12,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     java.util.List<User> findOlistConnectedUsers();
     Optional<User> findByEmail(String email);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where lower(u.email) = lower(:email)")
+    Optional<User> findByEmailForPasswordReset(@Param("email") String email);
+
     @Query("select u from User u where u.client_id = :clientId")
     Optional<User> findByClientId(@Param("clientId") String clientId);
 }

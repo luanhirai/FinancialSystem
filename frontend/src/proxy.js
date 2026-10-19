@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 const API_URL =
   process.env.BACKEND_URL ||
   "http://localhost:8080";
-const publicRoutes = new Set(["/", "/login", "/register"]);
+const publicRoutes = new Set(["/", "/login", "/register", "/recuperar-senha", "/redefinir-senha"]);
 
 async function isAuthenticated(request) {
   const cookie = request.headers.get("cookie") || "";
@@ -63,6 +63,8 @@ export const config = {
     "/",
     "/login",
     "/register",
+    "/recuperar-senha",
+    "/redefinir-senha",
     "/dashboard/:path*",
     "/products/:path*",
     "/importacao-tiny/:path*",
