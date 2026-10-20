@@ -156,3 +156,34 @@
 .logout-button:hover {
   background: rgba(255, 80, 80, 0.25);
 }
+/* Recovery links follow the FINSYS palette, including visited links. */
+.login-footer a,
+.login-footer a:visited {
+  color: #34d399;
+  font-weight: 500;
+  text-decoration: none;
+}
+.login-footer a:hover { color: #6ee7b7; }
+.login-footer a:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.login-footer .password-recovery-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 42px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.07);
+  font-weight: 600;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.login-footer .password-recovery-link:hover {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.5);
+}

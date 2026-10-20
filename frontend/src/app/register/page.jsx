@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiUrl } from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 import "./register.css";
 
 export default function RegisterPage() {
@@ -97,10 +98,9 @@ export default function RegisterPage() {
 
           <div className="form-group">
             <label htmlFor="password">Senha</label>
-            <input 
+            <PasswordInput
               id="password"
-              type="password" 
-              placeholder="••••••••" 
+              autoComplete="new-password" minLength={8} maxLength={72} placeholder="••••••••"
               required 
               value={password}
               onChange={(e) => setPassword(e.target.value)}

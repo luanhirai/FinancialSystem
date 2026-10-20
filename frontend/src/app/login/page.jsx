@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiUrl } from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 import "./login.css";
 
 export default function LoginPage() {
@@ -70,10 +71,9 @@ export default function LoginPage() {
 
           <div className="form-group">
             <label htmlFor="password">Senha</label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
-              placeholder="••••••••"
+              autoComplete="current-password" placeholder="••••••••"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -92,7 +92,7 @@ export default function LoginPage() {
         </form>
 
         <div className="login-footer">
-          <p><Link href="/recuperar-senha">Esqueci minha senha</Link></p>
+          <p><Link href="/recuperar-senha" className="password-recovery-link">Esqueci minha senha</Link></p>
           <p>Não tem uma conta? <span onClick={() => router.push("/register")} style={{ cursor: "pointer" }}>Registrar</span></p>
         </div>
       </div>

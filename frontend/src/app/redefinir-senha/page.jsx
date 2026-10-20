@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { apiUrl } from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 import "../login/login.css";
 
 export default function ResetPasswordPage() {
@@ -46,10 +47,10 @@ export default function ResetPasswordPage() {
           <div className="error-message" role="alert">Link inválido. Solicite uma nova recuperação.</div> :
           <form className="login-form" onSubmit={submit}>
             <div className="form-group"><label htmlFor="password">Nova senha (mínimo 8 caracteres)</label>
-              <input id="password" type="password" autoComplete="new-password" required minLength={8} maxLength={72}
+              <PasswordInput id="password" autoComplete="new-password" required minLength={8} maxLength={72}
                 value={password} onChange={(event) => setPassword(event.target.value)} /></div>
             <div className="form-group"><label htmlFor="confirm">Confirme a nova senha</label>
-              <input id="confirm" type="password" autoComplete="new-password" required minLength={8} maxLength={72}
+              <PasswordInput id="confirm" visibilityLabel="confirmação da senha" autoComplete="new-password" required minLength={8} maxLength={72}
                 value={confirm} onChange={(event) => setConfirm(event.target.value)} /></div>
             {error && <div className="error-message" role="alert">{error}</div>}
             <button className="login-button" type="submit" disabled={busy || !ready}>{busy ? "Salvando..." : "Salvar nova senha"}</button>
