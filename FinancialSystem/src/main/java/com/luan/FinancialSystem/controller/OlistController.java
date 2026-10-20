@@ -56,12 +56,12 @@ public class OlistController {
         return olistImportService.listarCatalogoProdutos();
     }
 
-    @PostMapping("/produtos/importar")
+    @PostMapping({"/produtos/importar", "/produtos/atualizar-estoque"})
     public OlistImportService.ImportStatus importarTodosProdutos() {
         return olistImportService.iniciarImportacaoTodosProdutos();
     }
 
-    @GetMapping("/produtos/importar/status")
+    @GetMapping({"/produtos/importar/status", "/produtos/atualizar-estoque/status"})
     public OlistImportService.ImportStatus statusImportacaoTodosProdutos() {
         return olistImportService.obterStatusImportacao();
     }

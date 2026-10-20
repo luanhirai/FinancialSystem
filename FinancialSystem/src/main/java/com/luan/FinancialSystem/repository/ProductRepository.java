@@ -8,6 +8,14 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product,Long> {
+    @Query("select distinct trim(p.id_olist) from Product p join p.ecommerce e where e.user.id = :userId and p.id_olist is not null")
+    List<String> findTinyIdsByUser(@Param("userId") Long userId);
+
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Product p set p.quantity = :quantity where trim(p.id_olist) = :tinyId and p.ecommerce.id in (select e.id from Ecommerce e where e.user.id = :userId)")
+    int updateStockByTinyIdAndUserId(@Param("tinyId") String tinyId, @Param("userId") Long userId, @Param("quantity") Integer quantity);
+
     Optional<Product> findByIdAndEcommerceUserId(Long id, Long userId);
     boolean existsByEcommerceId(Long ecommerceId);
     @Query("SELECT p FROM Product p JOIN p.ecommerce e JOIN e.user u WHERE u.id = :userId")

@@ -33,6 +33,13 @@ public class OlistImportService {
     private final AuthenticatedUserService authenticatedUserService;
     private final UserRepository userRepository;
     private final Map<Long, ImportStatus> importJobs = new ConcurrentHashMap<>();
+    private final java.util.concurrent.ThreadPoolExecutor stockExecutor = new java.util.concurrent.ThreadPoolExecutor(
+            2, 2, 0, java.util.concurrent.TimeUnit.SECONDS, new java.util.concurrent.ArrayBlockingQueue<>(16),
+            runnable -> {
+                Thread thread = new Thread(runnable, "tiny-stock-sync");
+                thread.setDaemon(true);
+                return thread;
+            });
 
     public OlistImportService(OlistClient olistClient,
                               ProductRepository productRepository,
@@ -103,16 +110,22 @@ public class OlistImportService {
         return olistClient.listarTodosProdutos(userId);
     }
 
-    public ImportStatus iniciarImportacaoTodosProdutos() {
-        User user = authenticatedUserService.getLoggedUser();
-        ImportStatus current = importJobs.get(user.getId());
+    public synchronized ImportStatus iniciarImportacaoTodosProdutos() {
+        Long userId = authenticatedUserService.getLoggedUser().getId();
+        ImportStatus current = importJobs.get(userId);
         if (current != null && current.running) return current;
-
         ImportStatus status = new ImportStatus();
         status.running = true;
-        status.message = "Preparando importacao dos produtos...";
-        importJobs.put(user.getId(), status);
-        CompletableFuture.runAsync(() -> executarImportacaoTodosProdutos(user.getId(), status));
+        status.message = "Consultando o catálogo atual do Tiny...";
+        importJobs.put(userId, status);
+        try {
+            stockExecutor.execute(() -> executarImportacaoTodosProdutos(userId, status));
+        } catch (java.util.concurrent.RejectedExecutionException exception) {
+            importJobs.remove(userId, status);
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
+                    "Há outras sincronizações em andamento. Tente novamente em alguns minutos.");
+        }
         return status;
     }
 
@@ -121,31 +134,60 @@ public class OlistImportService {
         return importJobs.getOrDefault(userId, ImportStatus.idle());
     }
 
-    private void executarImportacaoTodosProdutos(Long userId, ImportStatus status) {
+    @jakarta.annotation.PreDestroy
+    void shutdownStockExecutor() {
+        stockExecutor.shutdownNow();
+    }
+
+    void executarImportacaoTodosProdutos(Long userId, ImportStatus status) {
         try {
             User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new IllegalStateException("Usuario da importacao nao encontrado."));
-            Ecommerce ecommerce = buscarOuCriarEcommerce(null, user);
-            List<OlistProdutoResumo> produtos = olistClient.listarTodosProdutos(userId);
-            status.total = produtos.size();
-            status.message = "Importando cadastro e estoque dos produtos...";
-
-            for (OlistProdutoResumo produtoOlist : produtos) {
-                if (produtoOlist == null || produtoOlist.id() == null) continue;
-                Product product = salvarProdutoResumo(produtoOlist, ecommerce, user);
-
-                var estoque = olistClient.obterEstoque(produtoOlist.id(), userId);
-                Double quantidade = estoque == null ? null
-                        : estoque.disponivel() != null ? estoque.disponivel() : estoque.saldo();
-                product.setQuantity(toInteger(quantidade));
-                productRepository.save(product);
-                status.processed++;
-                status.message = "Produto " + status.processed + " de " + status.total;
+                    .orElseThrow(() -> new IllegalStateException("Usuário não encontrado."));
+            Map<Long, OlistProdutoResumo> catalog = new LinkedHashMap<>();
+            for (OlistProdutoResumo item : olistClient.listarTodosProdutos(userId)) {
+                if (item != null && item.id() != null && item.id() > 0) catalog.putIfAbsent(item.id(), item);
             }
-
-            status.message = status.processed + " produtos importados e sincronizados.";
+            status.total = catalog.size();
+            java.util.Set<String> existingIds = new java.util.HashSet<>(productRepository.findTinyIdsByUser(userId));
+            Ecommerce defaultStore = null;
+            for (OlistProdutoResumo item : catalog.values()) {
+                if (Thread.currentThread().isInterrupted()) throw new IllegalStateException("Sincronização interrompida.");
+                try {
+                    var stock = olistClient.obterEstoque(item.id(), userId);
+                    Double quantity = stock == null ? null : stock.disponivel() != null ? stock.disponivel() : stock.saldo();
+                    if (quantity == null || !Double.isFinite(quantity)
+                            || quantity < Integer.MIN_VALUE || quantity > Integer.MAX_VALUE) {
+                        throw new IllegalStateException("Estoque indisponível para o produto.");
+                    }
+                    if (existingIds.contains(String.valueOf(item.id()))) {
+                        // A stock-only SQL update also preserves edits made while the sync is running.
+                        int affected = productRepository.updateStockByTinyIdAndUserId(String.valueOf(item.id()), userId, toInteger(quantity));
+                        if (affected == 0) throw new IllegalStateException("Produto removido durante a sincronização.");
+                        status.updated++;
+                    } else {
+                        if (defaultStore == null) defaultStore = buscarOuCriarEcommerce(null, user);
+                        Product product = new Product();
+                        product.setId_olist(String.valueOf(item.id()));
+                        product.setName(item.descricao());
+                        product.setOriginal_price(toFloat(item.precos() != null ? item.precos().preco() : null));
+                        product.setCost(toFloat(item.precos() != null ? item.precos().precoCusto() : null));
+                        product.setQuantity(toInteger(quantity));
+                        product.setEcommerce(defaultStore);
+                        productRepository.save(product);
+                        existingIds.add(String.valueOf(item.id()));
+                        status.created++;
+                    }
+                } catch (Exception exception) {
+                    status.failed++;
+                    // Provider responses and credentials must not be exposed in the job status.
+                }
+                status.processed++;
+                status.message = "Processados " + status.processed + " de " + status.total + " produtos.";
+            }
+            status.message = "Sincronização concluída: " + status.updated + " atualizados, "
+                    + status.created + " cadastrados e " + status.failed + " com falha.";
         } catch (Exception exception) {
-            status.error = exception.getMessage() != null ? exception.getMessage() : "Erro inesperado na importacao.";
+            status.error = "Não foi possível concluir a sincronização. Verifique a conexão com o Tiny e tente novamente.";
         } finally {
             status.running = false;
         }
@@ -174,23 +216,14 @@ public class OlistImportService {
         productRepository.save(product);
     }
 
-    private Product salvarProdutoResumo(OlistProdutoResumo produtoOlist, Ecommerce ecommerce, User user) {
-        String idOlist = String.valueOf(produtoOlist.id());
-        Product product = productRepository.findByIdOlistAndUserId(idOlist, user.getId())
-                .orElseGet(Product::new);
-        product.setId_olist(idOlist);
-        product.setName(produtoOlist.descricao());
-        product.setOriginal_price(toFloat(produtoOlist.precos() != null ? produtoOlist.precos().preco() : null));
-        product.setCost(toFloat(produtoOlist.precos() != null ? produtoOlist.precos().precoCusto() : null));
-        product.setEcommerce(ecommerce);
-        return productRepository.save(product);
-    }
-
     private Integer toInteger(Double value) {
         return value != null ? (int) Math.round(value) : null;
     }
 
     public static class ImportStatus {
+        public volatile int updated;
+        public volatile int created;
+        public volatile int failed;
         public volatile boolean running;
         public volatile int total;
         public volatile int processed;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { authFetch } from "@/lib/api";
 import "./products.css";
@@ -43,6 +43,8 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(false);
   const [importingTiny, setImportingTiny] = useState(false);
   const [importMessage, setImportMessage] = useState("");
+  const [stockStatus, setStockStatus] = useState(null);
+  const syncMonitor = useRef(0);
   const [form, setForm] = useState({
     name: "",
     original_price: "",
@@ -55,6 +57,19 @@ export default function ProductsPage() {
   useEffect(() => {
     fetchProducts();
     fetchEcommerces();
+  }, []);
+
+  useEffect(() => {
+    const monitorId = ++syncMonitor.current;
+    authFetch("/olist/produtos/atualizar-estoque/status")
+      .then((response) => response.ok ? response.json() : null)
+      .then((status) => {
+        if (status?.running && syncMonitor.current === monitorId) {
+          return monitorTinyStock(status, monitorId);
+        }
+      })
+      .catch(() => {});
+    return () => { ++syncMonitor.current; };
   }, []);
 
   const fetchProducts = async () => {
@@ -168,48 +183,53 @@ export default function ProductsPage() {
     }
   };
 
-  const handleImportTiny = async () => {
-    setImportingTiny(true);
-    setImportMessage("");
-    setError("");
-
+  async function monitorTinyStock(initialStatus, monitorId) {
+    let status = initialStatus;
     try {
-      const res = await authFetch("/olist/produtos/importar", {
-        method: "POST",
-      });
-
-      if (!res.ok) {
-        const msg = await res.text();
-        setError(msg || "Erro ao importar produtos do Tiny.");
-        return;
-      }
-
-      let status = await res.json();
-      setImportMessage(status.message || "Importacao iniciada.");
-
-      while (status.running) {
+      while (syncMonitor.current === monitorId) {
+        setImportingTiny(status.running);
+        setStockStatus(status);
+        setImportMessage(status.message || "Consultando o Tiny...");
+        if (!status.running) {
+          if (status.error) setError(status.error);
+          await Promise.all([fetchProducts(), fetchEcommerces()]);
+          return;
+        }
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        const statusResponse = await authFetch("/olist/produtos/importar/status");
-        if (!statusResponse.ok) throw new Error("Nao foi possivel consultar o progresso.");
-        status = await statusResponse.json();
-        setImportMessage(status.total > 0
-          ? `${status.message} (${status.processed}/${status.total})`
-          : status.message);
+        if (syncMonitor.current !== monitorId) return;
+        const response = await authFetch("/olist/produtos/atualizar-estoque/status");
+        if (!response.ok) throw new Error("Não foi possível consultar o progresso. Clique em Atualizar estoque atual para acompanhar novamente.");
+        status = await response.json();
       }
-
-      if (status.error) {
-        setError(status.error);
-        setImportMessage("");
-        return;
-      }
-
-      await Promise.all([fetchProducts(), fetchEcommerces()]);
-      setImportMessage(status.message || "Produtos sincronizados com o Tiny.");
     } catch (err) {
-      console.error("Erro ao importar produtos do Tiny:", err);
-      setError("Erro ao conectar com o servidor.");
+      if (syncMonitor.current === monitorId) setError(err.message || "Não foi possível acompanhar a sincronização.");
     } finally {
-      setImportingTiny(false);
+      if (syncMonitor.current === monitorId) setImportingTiny(false);
+    }
+  }
+
+  const handleImportTiny = async () => {
+    const monitorId = ++syncMonitor.current;
+    setImportingTiny(true);
+    setImportMessage("Iniciando atualização do estoque...");
+    setStockStatus(null);
+    setError("");
+    try {
+      const response = await authFetch("/olist/produtos/atualizar-estoque", { method: "POST" });
+      if (!response.ok) {
+        throw new Error(response.status === 429
+          ? "Há outras sincronizações em andamento. Tente novamente em alguns minutos."
+          : response.status === 401 || response.status === 403
+            ? "Sua sessão expirou. Faça login novamente."
+            : "Não foi possível iniciar a atualização. Verifique a conexão com o Tiny.");
+      }
+      if (syncMonitor.current !== monitorId) return;
+      await monitorTinyStock(await response.json(), monitorId);
+    } catch (err) {
+      if (syncMonitor.current === monitorId) {
+        setError(err.message || "Não foi possível conectar ao servidor.");
+        setImportingTiny(false);
+      }
     }
   };
 
@@ -289,14 +309,42 @@ export default function ProductsPage() {
               type="button"
               onClick={handleImportTiny}
               disabled={importingTiny}
+              aria-busy={importingTiny}
             >
-              {importingTiny ? "Importando produtos..." : "Importar produtos do Tiny"}
+              <svg className={`stock-sync-icon ${importingTiny ? "is-spinning" : ""}`} width="18" height="18"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 7v5h-5M4 17v-5h5" />
+                <path d="M6.1 7a7 7 0 0 1 11.6-2L20 8M4 16l2.3 3A7 7 0 0 0 17.9 17" />
+              </svg>
+              {importingTiny ? "Atualizando estoque..." : "Atualizar estoque atual"}
             </button>
             <button className="btn-primary" onClick={openCreate}>+ Novo Produto</button>
           </div>
         </header>
 
-        {importMessage && <p className="success-message">{importMessage}</p>}
+        {error && !isModalOpen && <p className="error-message" role="alert">{error}</p>}
+        {importMessage && (
+          <div className="stock-sync-status" role="status" aria-live="polite">
+            <p>{importMessage}</p>
+            {stockStatus && (
+              <div className="stock-sync-counts">
+                <span><strong>{stockStatus.updated ?? 0}</strong> atualizados</span>
+                <span><strong>{stockStatus.created ?? 0}</strong> cadastrados</span>
+                <span className={stockStatus.failed > 0 ? "stock-sync-warning" : ""}>
+                  <strong>{stockStatus.failed ?? 0}</strong> com falha
+                </span>
+              </div>
+            )}
+            {stockStatus?.running && stockStatus.total > 0 && (
+              <progress value={stockStatus.processed} max={stockStatus.total}
+                aria-label={`${stockStatus.processed} de ${stockStatus.total} produtos processados`} />
+            )}
+            {!stockStatus?.running && stockStatus?.failed > 0 && (
+              <p className="stock-sync-warning">Produtos com falha não tiveram o estoque alterado. Tente atualizar novamente.</p>
+            )}
+          </div>
+        )}
 
         <section className="content-section glass animate-fade-in">
           <div className="product-filters">
