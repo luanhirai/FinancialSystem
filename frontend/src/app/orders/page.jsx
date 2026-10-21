@@ -101,6 +101,24 @@ export default function OrdersPage() {
     return [...result.entries()].sort(([a], [b]) => b.localeCompare(a));
   }, [orders, search, status, start, end, getDate, invalidPeriod]);
   const count = groups.reduce((sum, [, rows]) => sum + rows.length, 0);
+  const ecommerceProfits = useMemo(() => {
+    const totals = new Map();
+    for (const [, rows] of groups) {
+      for (const order of rows) {
+        const name = order.ecommerceName?.trim() || "Sem ecommerce informado";
+        const key = name.toLocaleLowerCase("pt-BR");
+        if (!totals.has(key)) totals.set(key, { name, cents: 0, calculated: 0, pending: 0 });
+        const total = totals.get(key);
+        if (order.realValue == null || String(order.realValue).trim() === "" || !Number.isFinite(Number(order.realValue))) {
+          total.pending++;
+        } else {
+          total.cents += Math.round(Number(order.realValue) * 100);
+          total.calculated++;
+        }
+      }
+    }
+    return [...totals.values()].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }, [groups]);
 
   const pageCount = Math.max(1, Math.ceil(count / pageSize));
   const currentPage = Math.min(page, pageCount);
@@ -141,6 +159,18 @@ export default function OrdersPage() {
     {error && <p role="alert">{error}</p>}
     {loading ? <p role="status">Carregando pedidos...</p> : <>
       <p className="orders-count">{count} pedido(s) em {groups.length} data(s).</p>
+      {ecommerceProfits.length > 0 && <section className="orders-day glass" aria-labelledby="ecommerce-profit-title">
+        <header><h2 id="ecommerce-profit-title">Lucro por ecommerce</h2><span>Todos os pedidos dos filtros selecionados</span></header>
+        <div className="orders-table"><table>
+          <thead><tr><th scope="col">Ecommerce</th><th scope="col">Lucro</th></tr></thead>
+          <tbody>{ecommerceProfits.map(item => <tr key={item.name}>
+            <td>{item.name}</td>
+            <td><strong>{item.calculated ? currency.format(item.cents / 100) : "Pendente"}</strong>
+              {item.pending > 0 && <small>{item.calculated ? "Valor parcial · " : ""}{item.pending} pedido(s) com lucro pendente</small>}
+            </td>
+          </tr>)}</tbody>
+        </table></div>
+      </section>}
       {!groups.length && !invalidPeriod && <div className="orders-empty glass">{orders.length ? "Nenhum pedido corresponde aos filtros." : "Nenhum pedido cadastrado no sistema."}</div>}
       {visibleGroups.map(([date, rows]) => {
         const total = rows.reduce((sum, order) => sum + Number(parse(order.financialDetails).total ?? parse(order.orderDetails).valorTotalPedido ?? 0), 0);
