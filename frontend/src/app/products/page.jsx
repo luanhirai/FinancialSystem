@@ -37,22 +37,11 @@ export default function ProductsPage() {
     minValue: "",
     maxValue: "",
   });
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [importingTiny, setImportingTiny] = useState(false);
   const [importMessage, setImportMessage] = useState("");
   const [stockStatus, setStockStatus] = useState(null);
   const syncMonitor = useRef(0);
-  const [form, setForm] = useState({
-    name: "",
-    original_price: "",
-    cost: "",
-    quantity: "",
-    id_olist: "",
-    ecommerce: { id: "" },
-  });
 
   useEffect(() => {
     fetchProducts();
@@ -94,84 +83,6 @@ export default function ProductsPage() {
     }
   };
 
-
-  const openCreate = () => {
-    setEditingProduct(null);
-    setForm({ name: "", original_price: "", cost: "", quantity: "", id_olist: "", ecommerce: { id: "" } });
-    setError("");
-    setIsModalOpen(true);
-  };
-
-  const openEdit = (product) => {
-    setEditingProduct(product);
-    setForm({
-      name: product.name ?? "",
-      original_price: product.original_price ?? "",
-      cost: product.cost ?? "",
-      quantity: product.quantity ?? "",
-      id_olist: product.id_olist ?? "",
-      ecommerce: { id: product.ecommerce?.id ?? "" },
-    });
-    setError("");
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setError("");
-  };
-
-
-  const handleSave = async () => {
-    if (!form.name.trim()) { 
-      setError("Nome é obrigatório."); 
-      return; 
-    }
-
-
-    if(form.price < 0 || form.original_price < 0 || form.cost < 0 || form.quantity < 0){
-      setError("Os valores devem ser inteiros e maiores que 0");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    const body = {
-      name: form.name,
-      original_price: form.original_price ? Number(form.original_price) : null,
-      cost: form.cost ? Number(form.cost) : null,
-      quantity: form.quantity ? Number(form.quantity) : null,
-      id_olist: form.id_olist || null,
-      ecommerce: form.ecommerce.id ? { id: Number(form.ecommerce.id) } : null,
-    };
-
-    try {
-      const url = editingProduct
-        ? `/product/update?id=${editingProduct.id}`
-        : "/product";
-      const method = editingProduct ? "PUT" : "POST";
-
-      const res = await authFetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const msg = await res.text();
-        setError(msg || "Erro ao salvar produto.");
-        return;
-      }
-
-      closeModal();
-      fetchProducts();
-    } catch {
-      setError("Erro ao conectar com o servidor.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDelete = async (id) => {
     if (!confirm("Tem certeza que deseja excluir este produto?")) return;
@@ -232,14 +143,6 @@ export default function ProductsPage() {
       }
     }
   };
-
-  const field = (key) => ({
-    value: key === "ecommerce" ? form.ecommerce.id : form[key],
-    onChange: (e) =>
-      key === "ecommerce"
-        ? setForm({ ...form, ecommerce: { id: e.target.value } })
-        : setForm({ ...form, [key]: e.target.value }),
-  });
 
   const isColumnVisible = (key) => visibleColumns.includes(key);
 
@@ -319,11 +222,10 @@ export default function ProductsPage() {
               </svg>
               {importingTiny ? "Atualizando estoque..." : "Atualizar estoque atual"}
             </button>
-            <button className="btn-primary" onClick={openCreate}>+ Novo Produto</button>
           </div>
         </header>
 
-        {error && !isModalOpen && <p className="error-message" role="alert">{error}</p>}
+        {error && <p className="error-message" role="alert">{error}</p>}
         {importMessage && (
           <div className="stock-sync-status" role="status" aria-live="polite">
             <p>{importMessage}</p>
@@ -454,7 +356,6 @@ export default function ProductsPage() {
                       {isColumnVisible("ecommerce") && <td><span className="badge">{p.ecommerce?.name || "-"}</span></td>}
                       <td>
                         <div className="action-buttons">
-                          <button className="btn-edit" onClick={() => openEdit(p)}>Editar</button>
                           <button className="btn-delete" onClick={() => handleDelete(p.id)}>Excluir</button>
                         </div>
                       </td>
@@ -468,56 +369,6 @@ export default function ProductsPage() {
         </section>
       </main>
 
-      {isModalOpen && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal glass" onClick={(e) => e.stopPropagation()}>
-            <h2>{editingProduct ? "Editar Produto" : "Novo Produto"}</h2>
-
-            <div className="form-group">
-              <label>Nome</label>
-              <input {...field("name")} placeholder="Nome do produto" />
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Preço Original</label>
-                <input type="number" {...field("original_price")} placeholder="0.00" />
-              </div>
-              <div className="form-group">
-                <label>Custo</label>
-                <input type="number" {...field("cost")} placeholder="0.00" />
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Quantidade</label>
-                <input type="number" {...field("quantity")} placeholder="0" />
-              </div>
-              <div className="form-group">
-                <label>ID Olist</label>
-                <input {...field("id_olist")} placeholder="ID externo" />
-              </div>
-            </div>
-            <div className="form-group">
-              <label>Ecommerce</label>
-              <select {...field("ecommerce")}>
-                <option value="">Selecione...</option>
-                {ecommerces.map((e) => (
-                  <option key={e.id} value={e.id}>{e.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {error && <p className="error-message">{error}</p>}
-
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={closeModal}>Cancelar</button>
-              <button className="btn-primary" onClick={handleSave} disabled={loading}>
-                {loading ? "Salvando..." : "Salvar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
