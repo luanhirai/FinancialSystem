@@ -84,3 +84,16 @@ input {
 input:focus {
   border-color: var(--accent-primary);
 }
+
+.nav-group > summary {
+  cursor: pointer;
+}
+
+.nav-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 4px 16px;
+  padding-left: 8px;
+  border-left: 1px solid var(--glass-border);
+}

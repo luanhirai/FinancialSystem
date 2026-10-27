@@ -35,10 +35,12 @@ export default function Sidebar() {
   const navItems = [
     { label: "Dashboard", path: "/dashboard" },
     { label: "Produtos", path: "/products" },
-    { label: "Importacao Tiny", path: "/importacao-tiny" },
     { label: "Ecommerce", path: "/ecommerce" },
     { label: "Pedidos", path: "/orders" },
-    { label: "Relatorios", path: "/reports" },
+    { label: "Relatórios", path: "/reports", children: [
+      { label: "Vendas", path: "/reports" },
+      { label: "Tiny", path: "/importacao-tiny" },
+    ] },
     { label: "Perfil", path: "/profile" },
     { label: "Configuracoes", path: "/rules_configuration" },
   ];
@@ -63,7 +65,22 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        {navItems.map((item) => (
+        {navItems.map((item) => item.children ? (
+          <details key={item.path} className="nav-group"
+            open={item.children.some((child) => pathname === child.path)}>
+            <summary className="nav-item">{item.label}</summary>
+            <div className="nav-submenu">
+              {item.children.map((child) => (
+                <button key={child.path}
+                  className={`nav-item ${pathname === child.path ? "active" : ""}`}
+                  aria-current={pathname === child.path ? "page" : undefined}
+                  onClick={() => router.push(child.path)}>
+                  {child.label}
+                </button>
+              ))}
+            </div>
+          </details>
+        ) : (
           <button
             key={item.path}
             className={`nav-item ${pathname === item.path ? "active" : ""}`}

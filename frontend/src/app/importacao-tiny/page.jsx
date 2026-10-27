@@ -60,10 +60,8 @@ export default function ImportacaoTinyPage() {
   const [pagination, setPagination] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [importedProducts, setImportedProducts] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -209,65 +207,6 @@ export default function ImportacaoTinyPage() {
     }
   };
 
-  const importOrderProducts = async (orderId) => {
-    setImporting(true);
-    setMessage("");
-    setError("");
-
-    try {
-      const res = await authFetch(`/olist/pedidos/${orderId}/produtos/importar`, {
-        method: "POST",
-      });
-
-      if (!res.ok) {
-        const msg = await res.text();
-        setError(msg || "Nao foi possivel importar os produtos do pedido.");
-        return;
-      }
-
-      const products = await res.json();
-      setImportedProducts(products || []);
-      setMessage(`${products?.length || 0} produtos importados do pedido ${orderId}.`);
-    } catch (err) {
-      console.error("Erro ao importar produtos do pedido:", err);
-      setError("Erro ao conectar com o servidor.");
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const importPeriodProducts = async () => {
-    if (orders.length === 0) {
-      setError("Busque pedidos antes de importar o periodo.");
-      return;
-    }
-
-    setImporting(true);
-    setMessage("");
-    setError("");
-
-    try {
-      const res = await authFetch(`/olist/pedidos/produtos/importar?${buildPeriodParams()}`, {
-        method: "POST",
-      });
-
-      if (!res.ok) {
-        const msg = await res.text();
-        setError(msg || "Nao foi possivel importar os produtos do periodo.");
-        return;
-      }
-
-      const products = await res.json();
-      setImportedProducts(products || []);
-      setMessage(`${products?.length || 0} produtos importados dos pedidos do periodo.`);
-    } catch (err) {
-      console.error("Erro ao importar produtos do periodo:", err);
-      setError("Erro ao conectar com o servidor.");
-    } finally {
-      setImporting(false);
-    }
-  };
-
   const escapeCsv = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
   const excelNumber = (value) => {
     const number = Number(value);
@@ -349,8 +288,8 @@ export default function ImportacaoTinyPage() {
         <header className="content-header">
           <div className="header-title">
             <span className="eyebrow">Tiny</span>
-            <h1>Importacao de dados</h1>
-            <p>Busque pedidos por periodo e importe os produtos vendidos para o sistema.</p>
+            <h1>Relatório Tiny</h1>
+            <p>Consulte pedidos por período e gere o relatório Excel.</p>
           </div>
           <div className="header-actions">
             <button
@@ -360,14 +299,6 @@ export default function ImportacaoTinyPage() {
               disabled={generatingReport || loadingOrders}
             >
               {generatingReport ? "Gerando relatorio..." : "Gerar relatorio Excel"}
-            </button>
-            <button
-              className="btn-primary"
-              type="button"
-              onClick={importPeriodProducts}
-              disabled={importing || orders.length === 0}
-            >
-              {importing ? "Importando..." : "Importar periodo"}
             </button>
           </div>
         </header>
@@ -498,14 +429,6 @@ export default function ImportacaoTinyPage() {
                         >
                           Detalhes
                         </button>
-                        <button
-                          className="btn-secondary"
-                          type="button"
-                          onClick={() => importOrderProducts(order.id)}
-                          disabled={importing}
-                        >
-                          Importar
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -516,26 +439,6 @@ export default function ImportacaoTinyPage() {
           <Pagination {...orderPagination.controls} label="pedidos" disabled={loadingOrders} />
         </section>
 
-        {importedProducts.length > 0 && (
-          <section className="content-section glass animate-fade-in">
-            <div className="section-header">
-              <div>
-                <h2>Produtos importados</h2>
-                <p>Ultima importacao executada nesta tela.</p>
-              </div>
-            </div>
-
-            <div className="tiny-imported-grid">
-              {importedProducts.slice(0, 8).map((product) => (
-                <article key={product.id || product.id_olist} className="tiny-imported-card">
-                  <strong>{product.name}</strong>
-                  <span>{product.ecommerce?.name || "Sem ecommerce"}</span>
-                  <p>{formatCurrency(product.original_price)} - estoque {product.quantity ?? 0}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
       </main>
 
       {isDetailsOpen && (
@@ -587,14 +490,6 @@ export default function ImportacaoTinyPage() {
                 <div className="tiny-modal-actions">
                   <button className="btn-secondary" type="button" onClick={closeOrderDetails}>
                     Fechar
-                  </button>
-                  <button
-                    className="btn-primary"
-                    type="button"
-                    onClick={() => importOrderProducts(selectedOrder.id)}
-                    disabled={importing}
-                  >
-                    {importing ? "Importando..." : "Importar itens"}
                   </button>
                 </div>
               </>
