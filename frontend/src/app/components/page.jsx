@@ -35,14 +35,16 @@ export default function Sidebar() {
   const navItems = [
     { label: "Dashboard", path: "/dashboard" },
     { label: "Produtos", path: "/products" },
-    { label: "Ecommerce", path: "/ecommerce" },
+    { label: "Ecommerce", path: "/ecommerce", children: [
+      { label: "Ecommerces", path: "/ecommerce" },
+      { label: "Imposto", path: "/rules_configuration" },
+    ] },
     { label: "Pedidos", path: "/orders" },
     { label: "Relatórios", path: "/reports", children: [
       { label: "Vendas", path: "/reports" },
       { label: "Tiny", path: "/importacao-tiny" },
     ] },
     { label: "Perfil", path: "/profile" },
-    { label: "Configuracoes", path: "/rules_configuration" },
   ];
 
   const handleLogout = async () => {
