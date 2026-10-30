@@ -53,6 +53,11 @@ public class OlistSalesWebhookController {
         return service.listForLoggedUser(data != null ? data : dataInicial, data != null ? data : dataFinal, tipoData);
     }
 
+    @PostMapping("/pedidos/recalcular")
+    public java.util.Map<String, Integer> recalculateAll() {
+        return service.recalculateAll();
+    }
+
     @PostMapping("/pedidos/{id}/recalcular")
     public OlistSalesOrderResponse recalculate(@PathVariable Long id) {
         return service.recalculate(id);

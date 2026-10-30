@@ -30,6 +30,12 @@ export default function OrdersPage() {
   const [status, setStatus] = useState("");
   const [dateType, setDateType] = useState("orderDate");
   const [selected, setSelected] = useState(null);
+  const [recalculating, setRecalculating] = useState(false);
+  const [recalculatingAll, setRecalculatingAll] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState("");
+  const [bulkError, setBulkError] = useState("");
+  const [recalculateError, setRecalculateError] = useState('');
+  const [recalculateMessage, setRecalculateMessage] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 15;
 
@@ -80,6 +86,39 @@ export default function OrdersPage() {
       if (!response.ok) throw new Error("Nao foi possivel iniciar a recuperacao de pedidos.");
       setSync(await response.json()); setError("");
     } catch (exception) { setError(exception.message); }
+  };
+
+  const recalculate = async id => {
+    if (recalculating || recalculatingAll) return;
+    setRecalculating(true);
+    setRecalculateError("");
+    setRecalculateMessage("");
+    try {
+      const response = await authFetch("/olist/vendas/pedidos/" + id + "/recalcular", { method: "POST" });
+      if (response.status === 401) { router.push("/login"); return; }
+      if (!response.ok) throw new Error("Não foi possível atualizar os valores do pedido. Tente novamente.");
+      const updated = await response.json();
+      setOrders(current => current.map(order => order.id === updated.id ? updated : order));
+      setSelected(current => current?.id === updated.id ? updated : current);
+      setRecalculateMessage("Valores atualizados com os impostos, custos e taxas atuais.");
+    } catch (exception) { setRecalculateError(exception.message); }
+    finally { setRecalculating(false); }
+  };
+  const recalculateAll = async () => {
+    if (recalculatingAll || recalculating) return;
+    setRecalculatingAll(true);
+    setBulkMessage("");
+    setBulkError("");
+    try {
+      const response = await authFetch("/olist/vendas/pedidos/recalcular", { method: "POST" });
+      if (response.status === 401) { router.push("/login"); return; }
+      if (!response.ok) throw new Error("Não foi possível recalcular todos os pedidos. Tente novamente.");
+      const result = await response.json();
+      setBulkMessage(`${result.total} pedido(s) recalculado(s) com os impostos, custos e taxas atuais. ${result.pending} pedido(s) com valores pendentes.`);
+      setSelected(null);
+      await load();
+    } catch (exception) { setBulkError(exception.message); }
+    finally { setRecalculatingAll(false); }
   };
 
   const invalidPeriod = !!(start && end && start > end);
@@ -139,6 +178,15 @@ export default function OrdersPage() {
     <header className="orders-heading"><div><h1>Pedidos</h1>
       <p>Todos os pedidos cadastrados no sistema, agrupados por data. Atualização automática a cada 15 segundos.</p>
     </div><button disabled={refreshing} onClick={load}>{refreshing ? "Atualizando..." : "Atualizar"}</button></header>
+    
+    <section className="orders-sync glass" style={{padding:20, marginTop:20}}>
+      <button type="button" disabled={recalculatingAll || recalculating} onClick={recalculateAll}>
+        {recalculatingAll ? "Recalculando todos os pedidos..." : "Recalcular todos os pedidos"}
+      </button>
+      <p>Atualiza todos os pedidos da sua conta com os impostos, custos e taxas atuais, independentemente dos filtros e da página.</p>
+      {bulkMessage && <p role="status">{bulkMessage}</p>}
+      {bulkError && <p role="alert">{bulkError}</p>}
+    </section>
     <section className="orders-filters glass" aria-label="Filtros de pedidos">
       <label className="orders-search">Buscar<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Pedido, cliente ou ecommerce" /></label>
       <label>Agrupar por<select value={dateType} onChange={e => setDateType(e.target.value)}><option value="orderDate">Data do pedido</option><option value="createdAt">Data de cadastro</option></select></label>
@@ -147,6 +195,7 @@ export default function OrdersPage() {
       <label>Status<select value={status} onChange={e => setStatus(e.target.value)}><option value="">Todos</option>{statuses.map(s => <option key={s}>{s}</option>)}</select></label>
       <button onClick={() => { setSearch(""); setStart(today()); setEnd(today()); setStatus(""); }}>Limpar filtros</button>
     </section>
+
     <section className="orders-sync glass" style={{padding:20, marginTop:20}}>
       <strong>Conexao com o Tiny</strong>
       <p>Recuperacao automatica de pedidos ausentes a cada 2 minutos, considerando apenas o dia atual. Para outro periodo, preencha as datas acima.</p>
@@ -155,6 +204,7 @@ export default function OrdersPage() {
       {sync?.error && <p role="alert">{sync.error}</p>}
       <button disabled={sync?.running} onClick={synchronize}>{sync?.running ? "Recuperando..." : "Recuperar pedidos do Tiny"}</button>
     </section>
+
     {invalidPeriod && <p role="alert">A data inicial deve ser anterior ou igual à data final.</p>}
     {error && <p role="alert">{error}</p>}
     {loading ? <p role="status">Carregando pedidos...</p> : <>
@@ -182,7 +232,7 @@ export default function OrdersPage() {
               <td>{order.customerName || "Sem informação"}</td><td>{order.ecommerceName || "Sem informação"}</td>
               <td><span className="order-status">{order.statusDescription || order.statusCode}</span></td>
               <td>{money(parse(order.financialDetails).total ?? parse(order.orderDetails).valorTotalPedido)}</td>
-              <td>{money(order.realValue)}</td><td><button onClick={() => setSelected(order)}>Ver detalhes</button></td>
+              <td>{money(order.realValue)}</td><td><button onClick={() => { setRecalculateError(""); setRecalculateMessage(""); setSelected(order); }}>Ver detalhes</button></td>
             </tr>)}</tbody></table></div>
         </section>;
       })}
@@ -198,6 +248,13 @@ export default function OrdersPage() {
         <button type="button" disabled={currentPage === pageCount} onClick={() => setPage(pageCount)} aria-label="Última página">Última</button>
       </div>
     </nav>}
-    {selected && <OrderDetailModal order={selected} onClose={() => setSelected(null)} />}
+    {selected && <OrderDetailModal order={selected} onClose={() => setSelected(null)}>
+      <button type="button" disabled={recalculating || recalculatingAll} onClick={() => recalculate(selected.id)}>
+        {recalculating ? "Atualizando valores..." : "Atualizar valores com impostos atuais"}
+      </button>
+      <p>Recalcula o valor real com os impostos, custos dos produtos e taxas do ecommerce configurados atualmente.</p>
+      {recalculateError && <p role="alert">{recalculateError}</p>}
+      {recalculateMessage && <p role="status">{recalculateMessage}</p>}
+    </OrderDetailModal>}
   </main></div>;
 }

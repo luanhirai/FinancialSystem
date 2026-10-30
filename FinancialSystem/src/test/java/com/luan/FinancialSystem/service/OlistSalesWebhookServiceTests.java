@@ -26,6 +26,29 @@ class OlistSalesWebhookServiceTests {
     @Mock AuthenticatedUserService authenticatedUserService;
 
     @Test
+    void recalculatesAllOrdersOfLoggedUserUsingSavedDetails() {
+        User user = new User(); user.setId(7L);
+        OlistSalesOrder first = new OlistSalesOrder(); first.setUser(user);
+        first.setOrderDetails("{\"valorTotalPedido\":100}");
+        first.setRealValue(new java.math.BigDecimal("80"));
+        OlistSalesOrder second = new OlistSalesOrder(); second.setUser(user);
+        second.setOrderDetails("{\"valorTotalPedido\":200}");
+        when(authenticatedUserService.getLoggedUser()).thenReturn(user);
+        var orders = java.util.List.of(first, second);
+        when(orderRepository.findByUserId(7L)).thenReturn(orders);
+        ObjectMapper mapper = new ObjectMapper();
+        var result = new OlistSalesWebhookService(orderRepository, userRepository, authenticatedUserService,
+                mapper, financialService).recalculateAll();
+        assertThat(result).containsEntry("total", 2).containsEntry("pending", 1);
+        verify(financialService).applyDetails(first, mapper.readTree(first.getOrderDetails()));
+        verify(financialService).applyDetails(second, mapper.readTree(second.getOrderDetails()));
+        org.mockito.Mockito.verify(financialService, org.mockito.Mockito.never()).enrich(org.mockito.ArgumentMatchers.any());
+        verify(orderRepository).saveAll(orders);
+        assertThat(first.getUpdatedAt()).isNotNull();
+        assertThat(second.getUpdatedAt()).isEqualTo(first.getUpdatedAt());
+    }
+
+    @Test
     void createsAndMapsSalesOrder() {
         User user = new User(); user.setId(7L);
         var request = request("inclusao_pedido", "aberto");

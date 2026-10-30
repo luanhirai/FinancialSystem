@@ -81,6 +81,27 @@ public class OlistSalesWebhookService {
     }
 
     @Transactional
+    public java.util.Map<String, Integer> recalculateAll() {
+        Long userId = authenticatedUserService.getLoggedUser().getId();
+        List<OlistSalesOrder> orders = orderRepository.findByUserId(userId);
+        int pending = 0;
+        Instant now = Instant.now();
+        for (OlistSalesOrder order : orders) {
+            var details = order.getOrderDetails();
+            var data = details == null || details.isBlank() ? null : objectMapper.readTree(details);
+            if (data != null && data.isObject() && !data.isEmpty()) {
+                financialService.applyDetails(order, data);
+            } else {
+                financialService.enrich(order);
+            }
+            order.setUpdatedAt(now);
+            if (order.getRealValue() == null) pending++;
+        }
+        orderRepository.saveAll(orders);
+        return java.util.Map.of("total", orders.size(), "pending", pending);
+    }
+
+    @Transactional
     public OlistSalesOrderResponse recalculate(Long id) {
         Long userId = authenticatedUserService.getLoggedUser().getId();
         OlistSalesOrder order = orderRepository.findById(id)
