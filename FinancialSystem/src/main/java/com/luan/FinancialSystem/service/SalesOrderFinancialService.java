@@ -40,6 +40,7 @@ public class SalesOrderFinancialService {
                 throw new IllegalStateException("Configure taxas e impostos validos.");
             JsonNode items=data.path("itens");
             if(!items.isArray() || items.isEmpty()) throw new IllegalStateException("Itens indisponiveis.");
+            List<Map<String,Object>> itemCosts = new ArrayList<>();
             BigDecimal costs=BigDecimal.ZERO, units=BigDecimal.ZERO;
             for(JsonNode item:items) {
                 String id=item.path("produto").path("id").asText();
@@ -48,16 +49,19 @@ public class SalesOrderFinancialService {
                 if(product.getCost()==null || product.getCost()<0) throw new IllegalStateException("Custo indisponivel: "+product.getName());
                 BigDecimal quantity=required(item,"quantidade");
                 if(quantity.signum()<=0) throw new IllegalStateException("Quantidade invalida.");
-                costs=costs.add(number(product.getCost()).multiply(quantity)); units=units.add(quantity);
+                BigDecimal itemCost = number(product.getCost()).multiply(quantity);
+                itemCosts.add(Map.of("index", itemCosts.size(), "productId", id, "cost", money(costs.add(itemCost)).subtract(money(costs))));
+                costs=costs.add(itemCost); units=units.add(quantity);
             }
             BigDecimal freight=data.path("valorFrete").isMissingNode() || data.path("valorFrete").isNull() ? BigDecimal.ZERO : required(data,"valorFrete");
             BigDecimal revenue=total.subtract(freight);
             BigDecimal percentage=money(revenue.multiply(number(channel.getRate())).divide(new BigDecimal("100")));
             BigDecimal fixed=money(units.multiply(number(channel.getFixed_rate())));
             BigDecimal tax=money(revenue.multiply(number(policy.getRate())).divide(new BigDecimal("100")));
+            result.put("itens", itemCosts);
             result.put("custoProdutos",money(costs)); result.put("taxaPercentual",percentage);
             result.put("taxaFixa",fixed); result.put("impostoVenda",tax); result.put("freteExcluido",freight);
-            order.setRealValue(money(revenue.subtract(costs).subtract(percentage).subtract(fixed).subtract(tax)));
+            order.setRealValue(money(revenue.subtract(money(costs)).subtract(percentage).subtract(fixed).subtract(tax)));
         } catch(IllegalStateException e) { result.put("pendencia",e.getMessage()); }
         order.setFinancialDetails(mapper.writeValueAsString(result));
     }
