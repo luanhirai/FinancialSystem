@@ -4,7 +4,6 @@ import {useRouter} from "next/navigation";
 import {authFetch} from "@/lib/api";
 import Sidebar from "../components/page";
 import OrderDetailModal from "../components/OrderDetailModal";
-import FinancialReports from "../components/FinancialReports";
 import "../orders/orders.css";
 import "../dashboard/dashboard.css";
 import "./reports.css";
@@ -14,7 +13,6 @@ const parse=s=>{try{return JSON.parse(s)||{};}catch{return {};}};
 export default function Reports(){
  const [orders,setOrders]=useState([]),[error,setError]=useState(""),[loading,setLoading]=useState(true),[search,setSearch]=useState(""),[selected,setSelected]=useState(null);
  const [date,setDate]=useState(today);
- const [financialRevision,setFinancialRevision]=useState(0);
  const [page,setPage]=useState(1),[recalculating,setRecalculating]=useState(false);
  const [recalculatingAll,setRecalculatingAll]=useState(false);
  const [bulkMessage,setBulkMessage]=useState("");
@@ -29,7 +27,7 @@ export default function Reports(){
  const recalculate=async id=>{
   if(recalculating||recalculatingAll)return;
   setRecalculating(true);
-  try{const r=await authFetch("/olist/vendas/pedidos/"+id+"/recalcular",{method:"POST"});if(!r.ok)throw Error("Nao foi possivel recalcular o pedido.");const updated=await r.json();setSelected(current=>current?.id===updated.id?updated:current);setOrders(current=>current.map(order=>order.id===updated.id?updated:order));setFinancialRevision(value=>value+1);setError("");}
+  try{const r=await authFetch("/olist/vendas/pedidos/"+id+"/recalcular",{method:"POST"});if(!r.ok)throw Error("Nao foi possivel recalcular o pedido.");const updated=await r.json();setSelected(current=>current?.id===updated.id?updated:current);setOrders(current=>current.map(order=>order.id===updated.id?updated:order));setError("");}
   catch(e){setError(e.message);}finally{setRecalculating(false);}
  };
  const recalculateAll=async()=>{
@@ -41,7 +39,7 @@ export default function Reports(){
    if(!response.ok)throw Error("Não foi possível recalcular todos os pedidos. Tente novamente.");
    const result=await response.json();
    setBulkMessage(`${result.total} pedido(s) recalculado(s) com os impostos, custos e taxas atuais. ${result.pending} pedido(s) com valores pendentes.`);
-   setSelected(null);setFinancialRevision(value=>value+1);
+   setSelected(null);
    await load();
   }catch(e){setBulkError(e.message);}finally{setRecalculatingAll(false);}
  };
@@ -81,6 +79,5 @@ export default function Reports(){
  <div className="report-detail-actions"><button disabled={recalculating||recalculatingAll} onClick={()=>recalculate(selected.id)}>{recalculating?"Recalculando...":"Recalcular com custos e taxas atuais"}</button>
  {error&&<p role="alert">{error}</p>}</div>
  </OrderDetailModal>}
- <FinancialReports refreshToken={financialRevision}/>
  </main></div>;
 }
