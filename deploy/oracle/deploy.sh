@@ -3,7 +3,12 @@ set -euo pipefail
 cd "$(dirname "$0")"
 # Same Compose project name preserves existing database and TLS volumes.
 exec 9>"$HOME/.financial-deploy.lock"
-flock -n 9 || { echo "Another deploy is running"; exit 1; }
+lock_wait_seconds="${DEPLOY_LOCK_TIMEOUT_SECONDS:-600}"
+[[ "$lock_wait_seconds" =~ ^[1-9][0-9]*$ ]] || { echo "Invalid deployment lock timeout"; exit 1; }
+if ! flock -n 9; then
+  echo "Another deployment is running; waiting up to $lock_wait_seconds seconds..."
+  flock -w "$lock_wait_seconds" 9 || { echo "Timed out waiting for the deployment lock. No services were changed."; exit 1; }
+fi
 shared_env="$HOME/financial-system/deploy/oracle/.env"
 test -s "$shared_env" || { echo "Missing production .env"; exit 1; }
 if [ "$(pwd)/.env" != "$shared_env" ]; then

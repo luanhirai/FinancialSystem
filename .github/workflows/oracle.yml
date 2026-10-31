@@ -59,6 +59,7 @@ jobs:
           MAIL_PASSWORD: ci-placeholder-app-password
         run: |
           bash -n deploy/oracle/deploy.sh
+          bash deploy/oracle/tests/deploy-lock.sh
           docker compose -f deploy/oracle/compose.yaml config --quiet
   deploy:
     needs: ci

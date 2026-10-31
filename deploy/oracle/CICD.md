@@ -46,3 +46,7 @@ Private repositories consume the account free allowance; enforce a spending budg
 with usage blocking to avoid charges beyond that allowance before enabling this workflow.
 No artifacts or Actions caches are uploaded by this workflow.
 See https://docs.github.com/en/billing/concepts/product-billing/github-actions
+
+## Deployment lock
+The server lock also protects against manual deployments. If another deployment holds it, the script waits up to 600 seconds before failing without changing services. DEPLOY_LOCK_TIMEOUT_SECONDS can override this limit with a positive integer.
+Prefer pushing to main and following GitHub Actions for routine releases; do not start a second manual deployment for the same commit.
