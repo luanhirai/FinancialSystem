@@ -37,7 +37,7 @@
 .credential-status.pending {
   border: 1px solid rgba(245, 158, 11, 0.35);
   background: rgba(245, 158, 11, 0.1);
-  color: #f59e0b;
+  color: var(--warning);
 }
 
 .profile-feedback {

@@ -198,7 +198,7 @@ export default function OrdersPage() {
     </div><button disabled={refreshing} onClick={load}>{refreshing ? "Atualizando..." : "Atualizar"}</button></header>
     
     <section className="orders-sync glass" style={{padding:20, marginTop:20}}>
-      <button type="button" disabled={recalculatingAll || recalculating} onClick={recalculateAll}>
+      <button type="button" disabled={recalculatingAll || recalculating} data-tour="orders-recalculate" onClick={recalculateAll}>
         {recalculatingAll ? "Recalculando todos os pedidos..." : "Recalcular todos os pedidos"}
       </button>
       <p>Atualiza todos os pedidos da sua conta com os impostos, custos e taxas atuais, independentemente dos filtros e da página.</p>
@@ -211,12 +211,12 @@ export default function OrdersPage() {
       <label>De<input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
       <label>Até<input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
       <label>Status<select value={status} onChange={e => setStatus(e.target.value)}><option value="">Todos</option>{statuses.map(s => <option key={s}>{s}</option>)}</select></label>
-      <button type="button" disabled={exporting || invalidPeriod} onClick={exportExcel}>{exporting ? "Exportando..." : "Exportar Excel (.xlsx)"}</button>
+      <button type="button" disabled={exporting || invalidPeriod} data-tour="orders-export" onClick={exportExcel}>{exporting ? "Exportando..." : "Exportar Excel (.xlsx)"}</button>
       <button onClick={() => { setSearch(""); setStart(today()); setEnd(today()); setStatus(""); }}>Limpar filtros</button>
     </section>
 
     <section className="orders-sync glass" style={{padding:20, marginTop:20}}>
-      <strong>Conexao com o Tiny</strong>
+      <strong data-tour="orders-sync">Conexao com o Tiny</strong>
       <p>Recuperacao automatica de pedidos ausentes a cada 2 minutos, considerando apenas o dia atual. Para outro periodo, preencha as datas acima.</p>
       {sync && <p role="status">{sync.running ? "Buscando pedidos no Tiny..." : sync.message}
         {sync.lastAttemptAt && " Ultima verificacao: " + new Date(sync.lastAttemptAt).toLocaleString("pt-BR", {timeZone:"America/Sao_Paulo"})}</p>}

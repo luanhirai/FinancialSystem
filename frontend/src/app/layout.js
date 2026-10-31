@@ -1,5 +1,9 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "driver.js/dist/driver.css";
+import "@/components/page-tutorial.css";
+import "./light-theme.css";
+import PageTutorial from "@/components/PageTutorial";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,7 +26,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>{children}<PageTutorial /></body>
     </html>
   );
 }

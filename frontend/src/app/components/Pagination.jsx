@@ -39,7 +39,7 @@ export default function Pagination({
   const last = Math.min(page * pageSize, total);
 
   return (
-    <nav className={styles.pagination} aria-label={`Paginacao de ${label}`}>
+    <nav data-tour="pagination" className={styles.pagination} aria-label={`Paginacao de ${label}`}>
       <span className={styles.summary} role="status">
         {first}–{last} de {total} {label}
       </span>

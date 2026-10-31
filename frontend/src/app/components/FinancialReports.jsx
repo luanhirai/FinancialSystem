@@ -20,14 +20,14 @@ function sorted(rows,sort,get){
   });
 }
 function TableFilters({search,setSearch,sort,setSort,label}){
- return <div className="report-toolbar"><label>Filtrar {label}<input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Digite para filtrar a tabela"/></label><label>Ordenar {label}<select value={sort} onChange={e=>setSort(e.target.value)}>
+ return <div className="report-toolbar" data-tour="table-filters"><label>Filtrar {label}<input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Digite para filtrar a tabela"/></label><label>Ordenar {label}<select value={sort} onChange={e=>setSort(e.target.value)}>
  {[["quantity:desc","Mais vendidos"],["quantity:asc","Menos vendidos"],["profit:desc","Maior lucro"],["profit:asc","Menor lucro"],["revenue:desc","Maior faturamento"],["revenue:asc","Menor faturamento"],["name:asc","Nome A–Z"],["name:desc","Nome Z–A"]].map(([value,text])=><option key={value} value={value}>{text}</option>)}
  </select></label></div>;
 }
 function SummaryTable({title,groups}) {
   const [search,setSearch]=useState(""),[sort,setSort]=useState("quantity:desc");
   const rows=sorted(groups.filter(group=>normalize(group.name).includes(normalize(search.trim()))),sort,(group,key)=>key==="name"?group.name:group.totals[key]);
-  return <section><h3>{title}</h3><TableFilters search={search} setSearch={setSearch} sort={sort} setSort={setSort} label={title}/><div className="report-table glass"><table>
+  return <section data-tour="summary-table"><h3>{title}</h3><TableFilters search={search} setSearch={setSearch} sort={sort} setSort={setSort} label={title}/><div className="report-table glass"><table>
     <thead><tr>{["Nome","Pedidos","Quantidade","Faturamento sem frete","Custos","Taxas","Impostos","Lucro","Pedidos pendentes"].map(label=><th key={label} scope="col">{label}</th>)}</tr></thead>
     <tbody>{rows.map(group=><tr key={group.id}><td>{group.name}</td><td>{group.totals.orders}</td><td>{quantity(group.totals.quantity)}</td><td>{money(group.totals.revenue)}</td><td>{money(group.totals.cost)}</td><td>{money(group.totals.fees)}</td><td>{money(group.totals.tax)}</td><td>{money(group.totals.profit)}{group.totals.pending>0&&<small>Valor parcial</small>}</td><td>{group.totals.pending}</td></tr>)}</tbody>
   </table>{!rows.length&&<p>Nenhuma venda encontrada.</p>}</div></section>;
@@ -81,14 +81,14 @@ export default function FinancialReports({refreshToken,mode="products"}) {
   return <section className="financial-reports" aria-labelledby="financial-reports-title">
     <h2 id="financial-reports-title">{mode==="products"?"Consulta de vendas por produto":"Comparativo financeiro dos e-commerces"}</h2>
     <p>Consulte vendas por produto e compare o lucro dos canais. Os filtros de período, nome do produto, produto e ecommerce se aplicam ao relatório e ao Excel. A busca e a ordenação de cada tabela organizam apenas sua visualização.</p>
-    <div className="report-toolbar">
+    <div className="report-toolbar" data-tour="report-filters">
       <label>De<input type="date" value={start} onChange={event=>setStart(event.target.value)}/></label>
       <label>Até<input type="date" value={end} onChange={event=>setEnd(event.target.value)}/></label>
       <label>Nome do produto<input type="search" value={productName} onChange={event=>setProductName(event.target.value)} placeholder="Digite o nome ou parte do nome"/></label>
       <label>Produto<select value={product} onChange={event=>setProduct(event.target.value)}><option value="">Todos os produtos</option>{options.products.map(option=><option key={option.id} value={option.id}>{option.name} (Tiny {option.id})</option>)}</select></label>
       <label>Ecommerce<select value={channel} onChange={event=>setChannel(event.target.value)}><option value="">Todos os canais</option>{options.channels.map(name=><option key={name} value={name}>{name}</option>)}</select></label>
       <button type="button" disabled={loading} onClick={()=>setRevision(value=>value+1)}>Atualizar relatório</button>
-      <button type="button" disabled={loading||!report||exporting} onClick={exportExcel}>{exporting?"Exportando...":"Exportar Excel (.xlsx)"}</button>
+      <button type="button" disabled={loading||!report||exporting} data-tour="report-export" onClick={exportExcel}>{exporting?"Exportando...":"Exportar Excel (.xlsx)"}</button>
     </div>
     {error&&<p role="alert">{error}</p>}
     {loading&&<p role="status">Carregando relatório financeiro...</p>}
@@ -99,7 +99,7 @@ export default function FinancialReports({refreshToken,mode="products"}) {
       {mode!=="channels"&&<SummaryTable title="Vendas por produto" groups={report.products}/>}
       <h3>Detalhamento dos itens vendidos</h3>
       <TableFilters search={itemSearch} setSearch={setItemSearch} sort={itemSort} setSort={setItemSort} label="itens vendidos"/>
-      <div className="report-table glass"><table><thead><tr>{["Pedido","Data","Ecommerce","Produto","SKU","Quantidade","Faturamento sem frete","Custos","Taxas","Impostos","Lucro"].map(label=><th key={label} scope="col">{label}</th>)}</tr></thead>
+      <div className="report-table glass" data-tour="report-items"><table><thead><tr>{["Pedido","Data","Ecommerce","Produto","SKU","Quantidade","Faturamento sem frete","Custos","Taxas","Impostos","Lucro"].map(label=><th key={label} scope="col">{label}</th>)}</tr></thead>
       <tbody>{lines.slice((Math.min(page,pageCount)-1)*25,Math.min(page,pageCount)*25).map((line,index)=><tr key={`${line.orderId}-${index}`}><td>{line.number}</td><td>{line.date?.split("-").reverse().join("/")}</td><td>{line.channel}</td><td>{line.product}</td><td>{line.sku}</td><td>{quantity(line.quantity)}</td><td>{money(line.revenue)}</td><td>{money(line.cost)}</td><td>{money(line.fees)}</td><td>{money(line.tax)}</td><td>{money(line.profit)}{line.pending&&<small>{line.pending}</small>}</td></tr>)}</tbody></table>{!count&&<p>Nenhuma venda encontrada para os filtros.</p>}</div>
       {count>0&&<nav className="orders-pagination glass" aria-label="Páginas dos itens financeiros"><span>{count} item(ns). Página {page} de {pageCount}.</span><div className="orders-page-controls"><button type="button" disabled={page===1} onClick={()=>setPage(page-1)}>Anterior</button><button type="button" disabled={page===pageCount} onClick={()=>setPage(page+1)}>Próxima</button></div></nav>}
     </>}

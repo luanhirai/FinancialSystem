@@ -1,15 +1,23 @@
 :root {
-  --background: #05070a;
-  --foreground: #f8fafc;
-  --card-bg: rgba(15, 23, 42, 0.6);
-  --card-border: rgba(255, 255, 255, 0.1);
-  --accent-primary: #10b981;
-  --accent-secondary: #3b82f6;
-  --accent-gradient: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
-  --text-muted: #94a3b8;
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  color-scheme: light;
+  --background: #f5f7f6;
+  --foreground: #20332d;
+  --text-primary: #20332d;
+  --surface: #ffffff;
+  --surface-muted: #f0f5f2;
+  --border: #dce5df;
+  --card-bg: #ffffff;
+  --card-border: #dce5df;
+  --accent-primary: #166b50;
+  --accent-secondary: #2b638f;
+  --accent-gradient: linear-gradient(135deg, #166b50 0%, #217c60 100%);
+  --text-muted: #5b6d64;
+  --danger: #b42332;
+  --warning: #93600d;
+  --glass-bg: #ffffff;
+  --glass-border: #dce5df;
+  --glass-shadow: 0 4px 24px rgba(26, 46, 40, 0.04);
+  --card-shadow-color: rgba(26, 46, 40, 0.08);
 }
 
 * {
@@ -37,8 +45,8 @@ body {
 /* Glassmorphism Utility */
 .glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
   border-radius: 16px;
@@ -72,10 +80,10 @@ button:active {
 }
 
 input {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface);
   border: 1px solid var(--glass-border);
   border-radius: 8px;
-  color: white;
+  color: var(--foreground);
   padding: 12px 16px;
   outline: none;
   transition: border-color 0.2s;
