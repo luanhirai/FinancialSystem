@@ -52,6 +52,16 @@ class FinancialReportServiceTests {
         verify(orders).findByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByOrderDateDescNumberDesc(7L,start,end);
         assertThatThrownBy(()->service.report(date,date,null,null,"invalid","","")).isInstanceOf(IllegalArgumentException.class);
     }
+    @Test void filtersPartialProductNameBeforeCalculatingTotals(){
+        var sale=order();sale.setOrderDetails(sale.getOrderDetails().replace("Produto A","Café especial"));data(sale);
+        var report=service.report(date,date,null,null,"orderDate","",""," CAFE ");
+        assertThat(report.lines()).hasSize(1);
+        assertThat(report.lines().getFirst().product()).isEqualTo("Café especial");
+        assertThat(report.totals().revenue()).isEqualByComparingTo("54");
+        assertThat(report.totals().profit()).isEqualByComparingTo("33.90");
+        assertThat(service.report(date,date,null,null,"orderDate","","","inexistente").lines()).isEmpty();
+        assertThat(service.report(date,date,"22",null,"orderDate","","","cafe").lines()).isEmpty();
+    }
     @Test void filtersProductAndChannelBeforeSummarizing(){
         data(order());var report=service.report(date,date,"11","Loja");
         assertThat(report.lines()).hasSize(1);assertThat(report.totals().revenue()).isEqualByComparingTo("54");

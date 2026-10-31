@@ -16,8 +16,9 @@ public class FinancialReportController {
     public FinancialReportService.Report report(
         @RequestParam @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate dataInicial,
         @RequestParam @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate dataFinal,
-        @RequestParam(required=false) String produtoId,@RequestParam(required=false) String ecommerce) {
-        return reports.report(dataInicial,dataFinal,produtoId,ecommerce);
+        @RequestParam(required=false) String produtoId,@RequestParam(required=false) String ecommerce,
+        @RequestParam(defaultValue="") String produtoNome) {
+        return reports.report(dataInicial,dataFinal,produtoId,ecommerce,"orderDate","","",produtoNome);
     }
     @GetMapping("/excel")
     public ResponseEntity<byte[]> export(
@@ -25,10 +26,11 @@ public class FinancialReportController {
         @RequestParam @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate dataFinal,
         @RequestParam(required=false) String produtoId,@RequestParam(required=false) String ecommerce,
         @RequestParam(defaultValue="orderDate") String tipoData,
-        @RequestParam(defaultValue="") String busca,@RequestParam(defaultValue="") String status) {
+        @RequestParam(defaultValue="") String busca,@RequestParam(defaultValue="") String status,
+        @RequestParam(defaultValue="") String produtoNome) {
         return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=financeiro-"+dataInicial+"-"+dataFinal+".xlsx")
             .cacheControl(CacheControl.noStore()).contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-            .body(excel.export(reports.report(dataInicial,dataFinal,produtoId,ecommerce,tipoData,busca,status)));
+            .body(excel.export(reports.report(dataInicial,dataFinal,produtoId,ecommerce,tipoData,busca,status,produtoNome)));
     }
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<String> invalid(IllegalArgumentException e) {return ResponseEntity.badRequest().body(e.getMessage());}

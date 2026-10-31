@@ -43,7 +43,6 @@ export default function Sidebar() {
     { label: "Relatórios", path: "/reports", children: [
       { label: "Vendas", path: "/reports" },
       { label: "Vendas por produto", path: "/reports/products" },
-      { label: "Financeiro consolidado", path: "/reports/financial" },
       { label: "Lucro por canal", path: "/reports/channels" },
       { label: "Tiny", path: "/importacao-tiny" },
     ] },

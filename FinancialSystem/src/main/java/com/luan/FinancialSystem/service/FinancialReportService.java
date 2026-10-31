@@ -36,6 +36,11 @@ public class FinancialReportService {
     }
     @Transactional(readOnly=true)
     public Report report(LocalDate start, LocalDate end, String productId, String channel, String dateType, String search, String status) {
+        return report(start,end,productId,channel,dateType,search,status,"");
+    }
+    @Transactional(readOnly=true)
+    public Report report(LocalDate start, LocalDate end, String productId, String channel, String dateType, String search, String status, String productName) {
+        String nameFilter=normalizeName(productName);
         if(!Set.of("orderDate","createdAt").contains(dateType)) throw new IllegalArgumentException("Tipo de data inválido.");
         if(start==null || end==null || start.isAfter(end)) throw new IllegalArgumentException("Informe um período válido.");
         String productFilter=productId==null?"":productId.trim();
@@ -91,10 +96,13 @@ public class FinancialReportService {
         }
         List<Option> options=all.stream().filter(l->!l.productId().isBlank()).collect(java.util.stream.Collectors.toMap(Line::productId,l->new Option(l.productId(),l.product()),(a,b)->a,TreeMap::new)).values().stream().toList();
         var channelOptions=all.stream().map(Line::channel).distinct().sorted().toList();
-        var lines=all.stream().filter(l->productFilter.isBlank()||productFilter.equals(l.productId())).filter(l->channelFilter.isBlank()||channelFilter.equals(l.channel())).toList();
+        var lines=all.stream().filter(l->productFilter.isBlank()||productFilter.equals(l.productId())).filter(l->channelFilter.isBlank()||channelFilter.equals(l.channel())).filter(l->nameFilter.isBlank()||normalizeName(l.product()).contains(nameFilter)).toList();
         Set<Long> ids=new HashSet<>(); lines.forEach(l->ids.add(l.orderId()));
-        var basis=productFilter.isBlank()?orderTotals.values().stream().filter(l->ids.contains(l.orderId())).toList():lines;
+        var basis=productFilter.isBlank()&&nameFilter.isBlank()?orderTotals.values().stream().filter(l->ids.contains(l.orderId())).toList():lines;
         return new Report(start,end,productFilter,channelFilter,totals(basis),groups(lines,true),groups(basis,false),lines,options,channelOptions,cancelled);
+    }
+    private String normalizeName(String name) {
+        return java.text.Normalizer.normalize(Objects.toString(name,"").trim(),java.text.Normalizer.Form.NFD).replaceAll("\\p{M}","").toLowerCase(Locale.forLanguageTag("pt-BR"));
     }
     private List<Group> groups(List<Line> lines,boolean product) {
         Map<String,List<Line>> grouped=new TreeMap<>();
