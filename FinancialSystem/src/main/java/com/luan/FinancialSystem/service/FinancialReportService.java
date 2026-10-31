@@ -32,10 +32,21 @@ public class FinancialReportService {
 
     @Transactional(readOnly=true)
     public Report report(LocalDate start, LocalDate end, String productId, String channel) {
+        return report(start,end,productId,channel,"orderDate","","");
+    }
+    @Transactional(readOnly=true)
+    public Report report(LocalDate start, LocalDate end, String productId, String channel, String dateType, String search, String status) {
+        if(!Set.of("orderDate","createdAt").contains(dateType)) throw new IllegalArgumentException("Tipo de data inválido.");
         if(start==null || end==null || start.isAfter(end)) throw new IllegalArgumentException("Informe um período válido.");
         String productFilter=productId==null?"":productId.trim();
         String channelFilter=channel==null?"":channel.trim();
-        List<OlistSalesOrder> selected=orders.findByUserIdAndOrderDateBetweenOrderByOrderDateDescNumberDesc(auth.getLoggedUser().getId(),start,end);
+        Long userId=auth.getLoggedUser().getId();
+        List<OlistSalesOrder> selected="createdAt".equals(dateType)
+            ? orders.findByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByOrderDateDescNumberDesc(userId,start.atStartOfDay(java.time.ZoneId.of("America/Sao_Paulo")).toInstant(),end.plusDays(1).atStartOfDay(java.time.ZoneId.of("America/Sao_Paulo")).toInstant())
+            : orders.findByUserIdAndOrderDateBetweenOrderByOrderDateDescNumberDesc(userId,start,end);
+        String query=Objects.toString(search,"").trim().toLowerCase(Locale.forLanguageTag("pt-BR"));
+        selected=selected.stream().filter(o->status==null||status.isBlank()||status.equals(o.getStatusDescription()))
+            .filter(o->query.isEmpty()||String.join(" ",Objects.toString(o.getNumber(),""),Objects.toString(o.getOlistOrderId(),""),Objects.toString(o.getEcommerceOrderId(),""),Objects.toString(o.getCustomerName(),""),Objects.toString(o.getEcommerceName(),"")).toLowerCase(Locale.forLanguageTag("pt-BR")).contains(query)).toList();
         List<Line> all=new ArrayList<>();
         Map<Long,Line> orderTotals=new LinkedHashMap<>();
         int cancelled=0;

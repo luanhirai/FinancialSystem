@@ -23,10 +23,12 @@ public class FinancialReportController {
     public ResponseEntity<byte[]> export(
         @RequestParam @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate dataInicial,
         @RequestParam @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate dataFinal,
-        @RequestParam(required=false) String produtoId,@RequestParam(required=false) String ecommerce) {
+        @RequestParam(required=false) String produtoId,@RequestParam(required=false) String ecommerce,
+        @RequestParam(defaultValue="orderDate") String tipoData,
+        @RequestParam(defaultValue="") String busca,@RequestParam(defaultValue="") String status) {
         return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=financeiro-"+dataInicial+"-"+dataFinal+".xlsx")
             .cacheControl(CacheControl.noStore()).contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-            .body(excel.export(reports.report(dataInicial,dataFinal,produtoId,ecommerce)));
+            .body(excel.export(reports.report(dataInicial,dataFinal,produtoId,ecommerce,tipoData,busca,status)));
     }
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<String> invalid(IllegalArgumentException e) {return ResponseEntity.badRequest().body(e.getMessage());}

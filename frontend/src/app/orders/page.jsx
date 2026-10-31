@@ -23,6 +23,7 @@ export default function OrdersPage() {
   const [sync, setSync] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [start, setStart] = useState(today);
@@ -64,6 +65,23 @@ export default function OrdersPage() {
     const timer = setInterval(load, 15000);
     return () => clearInterval(timer);
   }, [load]);
+
+  const exportExcel = async () => {
+    if (exporting || (start && end && start > end)) return;
+    setExporting(true); setError("");
+    try {
+      const params = new URLSearchParams({dataInicial:start || end || today(), dataFinal:end || start || today(), tipoData:dateType, busca:search, status});
+      const response = await authFetch("/olist/relatorios/financeiro/excel?" + params);
+      if (response.status === 401) { router.push("/login"); return; }
+      if (!response.ok) throw new Error("Não foi possível exportar os pedidos para Excel.");
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url; link.download = "pedidos-"+(start || end || today())+"-"+(end || start || today())+".xlsx";
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (exception) { setError(exception.message); }
+    finally { setExporting(false); }
+  };
 
   const getDate = useCallback(order => {
     if (dateType === "orderDate") return order.orderDate || "";
@@ -193,6 +211,7 @@ export default function OrdersPage() {
       <label>De<input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
       <label>Até<input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
       <label>Status<select value={status} onChange={e => setStatus(e.target.value)}><option value="">Todos</option>{statuses.map(s => <option key={s}>{s}</option>)}</select></label>
+      <button type="button" disabled={exporting || invalidPeriod} onClick={exportExcel}>{exporting ? "Exportando..." : "Exportar Excel (.xlsx)"}</button>
       <button onClick={() => { setSearch(""); setStart(today()); setEnd(today()); setStatus(""); }}>Limpar filtros</button>
     </section>
 

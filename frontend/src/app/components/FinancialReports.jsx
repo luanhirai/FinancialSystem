@@ -15,7 +15,7 @@ function SummaryTable({title,groups}) {
   </table>{!groups.length&&<p>Nenhuma venda encontrada.</p>}</div></section>;
 }
 
-export default function FinancialReports({refreshToken}) {
+export default function FinancialReports({refreshToken,mode="financial"}) {
   const router=useRouter();
   const [start,setStart]=useState(today),[end,setEnd]=useState(today);
   const [product,setProduct]=useState(""),[channel,setChannel]=useState("");
@@ -57,7 +57,7 @@ export default function FinancialReports({refreshToken}) {
   const count=report?.lines.length||0;
   const pageCount=Math.max(1,Math.ceil(count/25));
   return <section className="financial-reports" aria-labelledby="financial-reports-title">
-    <h2 id="financial-reports-title">Relatório financeiro consolidado</h2>
+    <h2 id="financial-reports-title">{mode==="products"?"Consulta de vendas por produto":mode==="channels"?"Comparativo financeiro dos e-commerces":"Relatório financeiro consolidado"}</h2>
     <p>Consulte vendas por produto e compare o lucro dos canais. Os filtros abaixo se aplicam a este relatório e ao Excel.</p>
     <div className="report-toolbar">
       <label>De<input type="date" value={start} onChange={event=>setStart(event.target.value)}/></label>
@@ -72,8 +72,8 @@ export default function FinancialReports({refreshToken}) {
     {report&&<>
       <div className="report-summary glass"><div>Pedidos<strong>{report.totals.orders}</strong></div><div>Quantidade vendida<strong>{quantity(report.totals.quantity)}</strong></div><div>Faturamento sem frete<strong>{money(report.totals.revenue)}</strong></div><div>Custos<strong>{money(report.totals.cost)}</strong></div><div>Taxas<strong>{money(report.totals.fees)}</strong></div><div>Impostos<strong>{money(report.totals.tax)}</strong></div><div>Lucro calculado<strong>{money(report.totals.profit)}</strong></div></div>
       <p>{report.cancelled} pedido(s) cancelado(s) excluído(s) no período. {report.totals.pending} pedido(s) com cálculo pendente. Totais com pendências são parciais. Valores por produto distribuem faturamento, impostos e taxa percentual proporcionalmente ao valor dos itens; taxa fixa por quantidade. Custos vêm do cálculo salvo. Pedidos antigos sem custos por item precisam ser recalculados pelo botão “Recalcular todos os pedidos”.</p>
-      <SummaryTable title="Lucro por canal" groups={report.channels}/>
-      <SummaryTable title="Vendas por produto" groups={report.products}/>
+      {mode!=="products"&&<SummaryTable title="Lucro por canal" groups={report.channels}/>}
+      {mode!=="channels"&&<SummaryTable title="Vendas por produto" groups={report.products}/>}
       <h3>Detalhamento dos itens vendidos</h3>
       <div className="report-table glass"><table><thead><tr>{["Pedido","Data","Ecommerce","Produto","SKU","Quantidade","Faturamento sem frete","Custos","Taxas","Impostos","Lucro"].map(label=><th key={label} scope="col">{label}</th>)}</tr></thead>
       <tbody>{report.lines.slice((page-1)*25,page*25).map((line,index)=><tr key={`${line.orderId}-${index}`}><td>{line.number}</td><td>{line.date?.split("-").reverse().join("/")}</td><td>{line.channel}</td><td>{line.product}</td><td>{line.sku}</td><td>{quantity(line.quantity)}</td><td>{money(line.revenue)}</td><td>{money(line.cost)}</td><td>{money(line.fees)}</td><td>{money(line.tax)}</td><td>{money(line.profit)}{line.pending&&<small>{line.pending}</small>}</td></tr>)}</tbody></table>{!count&&<p>Nenhuma venda encontrada para os filtros.</p>}</div>

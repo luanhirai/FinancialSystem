@@ -40,6 +40,18 @@ class FinancialReportServiceTests {
         assertThat(report.channels()).hasSize(1);assertThat(report.products()).hasSize(2);
         verify(orders).findByUserIdAndOrderDateBetweenOrderByOrderDateDescNumberDesc(7L,date,date);
     }
+    @Test void filtersOrderSearchAndStatusAndUsesBusinessTimezoneForRegistrationDate(){
+        var sale=order();sale.setStatusDescription("Aprovado");sale.setCustomerName("João");data(sale);
+        assertThat(service.report(date,date,null,null,"orderDate"," JOÃO ","Aprovado").totals().orders()).isEqualTo(1);
+        assertThat(service.report(date,date,null,null,"orderDate","Outro cliente","").lines()).isEmpty();
+        assertThat(service.report(date,date,null,null,"orderDate","","Cancelado").lines()).isEmpty();
+        var zone=java.time.ZoneId.of("America/Sao_Paulo");
+        var start=date.atStartOfDay(zone).toInstant();var end=date.plusDays(1).atStartOfDay(zone).toInstant();
+        when(orders.findByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByOrderDateDescNumberDesc(7L,start,end)).thenReturn(List.of(sale));
+        assertThat(service.report(date,date,null,null,"createdAt","","").totals().orders()).isEqualTo(1);
+        verify(orders).findByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByOrderDateDescNumberDesc(7L,start,end);
+        assertThatThrownBy(()->service.report(date,date,null,null,"invalid","","")).isInstanceOf(IllegalArgumentException.class);
+    }
     @Test void filtersProductAndChannelBeforeSummarizing(){
         data(order());var report=service.report(date,date,"11","Loja");
         assertThat(report.lines()).hasSize(1);assertThat(report.totals().revenue()).isEqualByComparingTo("54");
