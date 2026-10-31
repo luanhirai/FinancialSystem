@@ -14,8 +14,9 @@ function pages(directory,route=""){
   return /import\s*{\s*redirect\s*}/.test(source)?[]:[route||"/"];
  });
 }
-test("every rendered page has a dedicated tutorial, including authentication",()=>{
+test("all remaining pages have tutorials and login intentionally has none",()=>{
  for(const route of pages(fileURLToPath(new URL("../src/app",import.meta.url)))){
+  if(route==="/login"){assert.equal(pageTours[route],undefined);assert.deepEqual(buildTourSteps(route,()=>null),[]);continue;}
   const tour=pageTours[route];
   assert.ok(tour,"Missing tutorial: "+route);
   assert.ok(tour.title&&tour.description&&tour.steps.length,"Incomplete tutorial: "+route);

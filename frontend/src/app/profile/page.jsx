@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { authFetch, apiUrl } from "@/lib/api";
 import Sidebar from "../components/page";
+import ThemeSettings from "@/components/ThemeSettings";
 import "./profile.css";
 
 const emptyForm = {
@@ -217,6 +218,8 @@ export default function ProfilePage() {
             <p>{hasClientSecret ? "Client secret salvo" : "Client secret nao salvo"}</p>
           </div>
         </header>
+
+        <ThemeSettings />
 
         <form className="profile-grid" onSubmit={saveProfile}>
           <section className="content-section glass animate-fade-in">
